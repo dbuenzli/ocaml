@@ -227,6 +227,14 @@ module Stdlib = struct
 
     let print ppf t =
       Format.pp_print_string ppf t
+
+    let uniquify ss =
+      let rec loop seen acc = function
+        | [] -> Stdlib.List.rev acc
+        | s :: ss when Set.mem s seen -> loop seen acc ss
+        | s :: ss -> loop (Set.add s seen) (s :: acc) ss
+      in
+      loop Set.empty [] ss
   end
 
   external compare : 'a -> 'a -> int = "%compare"
