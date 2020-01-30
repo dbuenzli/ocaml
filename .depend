@@ -75,6 +75,14 @@ utils/int_replace_polymorphic_compare.cmo : \
 utils/int_replace_polymorphic_compare.cmx : \
     utils/int_replace_polymorphic_compare.cmi
 utils/int_replace_polymorphic_compare.cmi :
+utils/lib.cmo : \
+    utils/misc.cmi \
+    utils/lib.cmi
+utils/lib.cmx : \
+    utils/misc.cmx \
+    utils/lib.cmi
+utils/lib.cmi : \
+    utils/misc.cmi
 utils/load_path.cmo : \
     utils/misc.cmi \
     utils/load_path.cmi
