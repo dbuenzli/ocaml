@@ -334,7 +334,7 @@ let main fname =
         Clflags.no_std_include := true;
         Compenv.last_include_dirs := [Filename.concat dir "stdlib"]
   end;
-  Compmisc.init_path ();
+  Compmisc.init_path () ~libs:[];
   Toploop.initialize_toplevel_env ();
   Sys.interactive := false;
   process_expect_file fname;

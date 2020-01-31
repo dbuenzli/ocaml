@@ -5814,6 +5814,7 @@ driver/main.cmo : \
     driver/makedepend.cmi \
     driver/main_args.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     utils/config.cmi \
     driver/compmisc.cmi \
     driver/compile.cmi \
@@ -5829,6 +5830,7 @@ driver/main.cmx : \
     driver/makedepend.cmx \
     driver/main_args.cmx \
     parsing/location.cmx \
+    utils/lib.cmx \
     utils/config.cmx \
     driver/compmisc.cmx \
     driver/compile.cmx \

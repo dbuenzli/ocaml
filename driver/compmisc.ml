@@ -15,17 +15,47 @@
 
 open Compenv
 
+let get_lib_resolver =
+  (* We have that as a lazy global because we'd like to create it
+     as needed and share it between the explicit main and the deferred
+     actions. *)
+  let lib_resolver =
+    lazy begin
+      let ocamlpath = Lib.Ocamlpath.of_dirs Config.ocamlpath in
+      Lib.Resolver.create ~ocamlpath
+    end
+  in
+  fun () -> Lazy.force lib_resolver
+
+let get_required_libs ?(prune = Lib.Name.Set.empty) r =
+  let get r n = match Lib.Name.Set.mem n prune with
+  | true -> None
+  | false ->
+    match Lib.Resolver.get r n with
+    | Ok l -> Some l | Error e -> Compenv.fatal e
+  in
+  let requires = Lib.Name.uniquify (List.rev !Clflags.requires_rev) in
+  List.filter_map (get r) requires
+
+let get_libs_files get libs =
+  let add_file acc l = match get l with
+    | Ok f -> f :: acc | Error e -> Compenv.fatal e
+  in
+  List.rev (List.fold_left add_file [] libs)
+
 (* Initialize the search path.
    [dir] is always searched first (default: the current directory),
    then the directories specified with the -I option (in command-line order),
+   then library directories of [libs], usually these libraries
+     are the ones specified via [-require] options (in cli order).
    then the standard library directory (unless the -nostdlib option is given).
  *)
 
-let init_path ?(dir="") () =
+let init_path ?(dir="") () ~libs =
   let dirs =
-    if !Clflags.use_threads then "+threads" :: !Clflags.include_dirs
-    else
-      !Clflags.include_dirs
+    let lib_dirs = List.map Lib.dir libs in
+    let dirs = List.rev_append lib_dirs !Clflags.include_dirs in
+    if !Clflags.use_threads then "+threads" :: dirs else dirs
   in
   let dirs =
     !last_include_dirs @ dirs @ Config.flexdll_dirs @ !first_include_dirs

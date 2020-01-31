@@ -13,7 +13,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val init_path : ?dir:string -> unit -> unit
+val get_lib_resolver : unit -> Lib.Resolver.t
+(** [get_lib_resolver ()] is a library resolver using
+    {!Config.ocamlpath}. *)
+
+val get_required_libs : ?prune:Lib.Name.Set.t -> Lib.Resolver.t -> Lib.t list
+(** [get_required_libs ~prune r] is the list of libraries that where
+    [-require]d on the cli and whose name is not in [prune] (defaults
+    to {!Lib.Name.Set.empty}) resolved using [r]. Errors with
+    {Compenv.fatal} on resolution errors. *)
+
+val get_libs_files :
+  (Lib.t -> (Misc.filepath, string) result) -> Lib.t list ->
+  Misc.filepath list
+(** [get_libs_file get_file libs] maps [get_file] on [libs] and
+    errors with {!Compenv.fatal} in case of error. *)
+
+val init_path : ?dir:string -> unit -> libs:Lib.t list -> unit
 val initial_env : unit -> Env.t
 
 (* Support for flags that can also be set from an environment variable *)

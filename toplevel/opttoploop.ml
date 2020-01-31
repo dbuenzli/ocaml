@@ -540,7 +540,7 @@ let refill_lexbuf buffer len =
 
 let _ =
   Sys.interactive := true;
-  Compmisc.init_path ();
+  Compmisc.init_path () ~libs:[];
   Clflags.dlcode := true;
   ()
 

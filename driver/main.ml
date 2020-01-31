@@ -69,7 +69,7 @@ let main () =
       | Some P.Scheduling -> assert false (* native only *)
     end;
     if !make_archive then begin
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let requires = List.rev !Clflags.requires_rev in
       let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
       let out_file = extract_output !output_name in
@@ -77,7 +77,7 @@ let main () =
       Warnings.check_fatal ();
     end
     else if !make_package then begin
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let extracted_output = extract_output !output_name in
       let revd = get_objfiles ~with_ocamlparam:false in
       Compmisc.with_ppf_dump ~file_prefix:extracted_output (fun ppf_dump ->
@@ -102,7 +102,7 @@ let main () =
         else
           default_output !output_name
       in
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       Bytelink.link (get_objfiles ~with_ocamlparam:true) target;
       Warnings.check_fatal ();
     end;
