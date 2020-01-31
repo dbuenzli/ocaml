@@ -462,6 +462,10 @@ let mk_no_rectypes f =
   " Do not allow arbitrary recursive types (default)"
 ;;
 
+let mk_require f =
+  "-require", Arg.String f, "<lib>  Add <lib> to the list of required libraries"
+;;
+
 let mk_remove_unused_arguments f =
   "-remove-unused-arguments", Arg.Unit f,
   " Remove unused function arguments"
@@ -904,6 +908,7 @@ module type Common_options = sig
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
   val _no_rectypes : unit -> unit
+  val _require : string -> unit
   val _safe_string : unit -> unit
   val _short_paths : unit -> unit
   val _strict_sequence : unit -> unit
@@ -1193,6 +1198,7 @@ struct
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_require F._require;
     mk_runtime_variant F._runtime_variant;
     mk_with_runtime F._with_runtime;
     mk_without_runtime F._without_runtime;
@@ -1268,6 +1274,7 @@ struct
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_require F._require;
     mk_safe_string F._safe_string;
     mk_short_paths F._short_paths;
     mk_stdin F._stdin;
@@ -1386,6 +1393,7 @@ struct
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_require F._require;
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_rounds F._rounds;
     mk_runtime_variant F._runtime_variant;
@@ -1507,6 +1515,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_require F._require;
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_S F._S;
     mk_safe_string F._safe_string;
@@ -1589,6 +1598,7 @@ struct
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_require F._require;
     mk_safe_string F._safe_string;
     mk_short_paths F._short_paths;
     mk_strict_sequence F._strict_sequence;
@@ -1678,6 +1688,10 @@ module Default = struct
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
     let _rectypes = set recursive_types
+    let _require lib = match Lib.Name.of_string lib with
+      | Ok lib -> requires_rev := (lib :: (!requires_rev))
+      | Error e -> raise (Arg.Bad e)
+
     let _safe_string = clear unsafe_string
     let _short_paths = clear real_paths
     let _strict_formats = set strict_formats
