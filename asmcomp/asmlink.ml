@@ -104,10 +104,14 @@ let extract_crc_implementations () =
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
 
+let lib_requires = ref [] (* This is only used by [Asmlink.link_shared] which
+                             behaves more like [Bytelibrarian.create_archive]
+                             than [{Asm,Byte}link.link]. *)
 let lib_ccobjs = ref []
 let lib_ccopts = ref []
 
 let add_ccobjs origin l =
+  lib_requires := l.lib_requires :: !lib_requires;
   if not !Clflags.no_auto_link then begin
     lib_ccobjs := l.lib_ccobjs @ !lib_ccobjs;
     let replace_origin =
@@ -262,14 +266,14 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
     force_linking_of_startup ~ppf_dump;
   Emit.end_assembly ()
 
-let make_shared_startup_file ~ppf_dump units =
+let make_shared_startup_file ~ppf_dump units ~requires =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
   Compilenv.reset "_shared_startup";
   Emit.begin_assembly ();
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true (List.map fst units));
-  compile_phrase (Cmm_helpers.plugin_header units);
+  compile_phrase (Cmm_helpers.plugin_header units ~requires);
   compile_phrase
     (Cmm_helpers.global_table
        (List.map (fun (ui,_) -> ui.ui_symbol) units));
@@ -283,7 +287,7 @@ let call_linker_shared file_list output_name =
   if not (Ccomp.call_linker Ccomp.Dll output_name file_list "")
   then raise(Error Linking_error)
 
-let link_shared ~ppf_dump objfiles output_name =
+let link_shared ~ppf_dump ~requires objfiles output_name =
   Profile.record_call output_name (fun () ->
     let units_tolink = List.fold_right scan_file objfiles [] in
     List.iter
@@ -299,11 +303,13 @@ let link_shared ~ppf_dump objfiles output_name =
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = output_name ^ ".startup" ^ ext_obj in
+    let requires = List.(concat (rev (requires :: !lib_requires))) in
     Asmgen.compile_unit
       startup !Clflags.keep_startup_file startup_obj
       (fun () ->
          make_shared_startup_file ~ppf_dump
            (List.map (fun (ui,_,crc) -> (ui,crc)) units_tolink)
+           ~requires
       );
     call_linker_shared (startup_obj :: objfiles) output_name;
     remove_file startup_obj

@@ -32,4 +32,5 @@ type dynunit = {
 type dynheader = {
   dynu_magic: string;
   dynu_units: dynunit list;
+  dynu_requires: Lib.Name.t list; (* Names of required libraries. *)
 }

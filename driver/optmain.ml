@@ -87,9 +87,10 @@ let main () =
     end;
     if !make_archive then begin
       Compmisc.init_path ();
-      let target = extract_output !output_name in
-      Asmlibrarian.create_archive
-        (get_objfiles ~with_ocamlparam:false) target;
+      let requires = List.rev !Clflags.requires_rev in
+      let objfiles = get_objfiles ~with_ocamlparam:false in
+      let out_file = extract_output !output_name in
+      Asmlibrarian.create_archive ~requires objfiles out_file;
       Warnings.check_fatal ();
     end
     else if !make_package then begin
@@ -102,10 +103,11 @@ let main () =
     end
     else if !shared then begin
       Compmisc.init_path ();
-      let target = extract_output !output_name in
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Asmlink.link_shared ~ppf_dump
-          (get_objfiles ~with_ocamlparam:false) target);
+      let requires = List.rev !Clflags.requires_rev in
+      let objfiles = get_objfiles ~with_ocamlparam:false in
+      let out_file = extract_output !output_name in
+      Compmisc.with_ppf_dump ~file_prefix:out_file (fun ppf_dump ->
+          Asmlink.link_shared ~ppf_dump ~requires objfiles out_file);
       Warnings.check_fatal ();
     end
     else if not !stop_early && !objfiles <> [] then begin

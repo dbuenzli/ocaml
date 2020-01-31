@@ -2630,7 +2630,7 @@ let predef_exception i name =
 
 (* Header for a plugin *)
 
-let plugin_header units =
+let plugin_header units ~requires =
   let mk ((ui : Cmx_format.unit_infos),crc) : Cmxs_format.dynunit =
     { dynu_name = ui.ui_name;
       dynu_crc = crc;
@@ -2640,7 +2640,8 @@ let plugin_header units =
     } in
   global_data "caml_plugin_header"
     ({ dynu_magic = Config.cmxs_magic_number;
-       dynu_units = List.map mk units }
+       dynu_units = List.map mk units;
+       dynu_requires = Lib.Name.uniquify requires; }
      : Cmxs_format.dynheader)
 
 (* To compile "let rec" over values *)

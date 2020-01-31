@@ -70,10 +70,10 @@ let main () =
     end;
     if !make_archive then begin
       Compmisc.init_path ();
-
-      Bytelibrarian.create_archive
-        (Compenv.get_objfiles ~with_ocamlparam:false)
-        (extract_output !output_name);
+      let requires = List.rev !Clflags.requires_rev in
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
+      let out_file = extract_output !output_name in
+      Bytelibrarian.create_archive ~requires objfiles out_file;
       Warnings.check_fatal ();
     end
     else if !make_package then begin

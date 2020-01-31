@@ -46,7 +46,7 @@ let read_info name =
   info.ui_export_info <- default_ui_export_info;
   (Filename.chop_suffix filename ".cmx" ^ ext_obj, (info, crc))
 
-let create_archive file_list lib_name =
+let create_archive ~requires file_list lib_name =
   let archive_name = Filename.remove_extension lib_name ^ ext_lib in
   let outchan = open_out_bin lib_name in
   Misc.try_finally
@@ -62,6 +62,7 @@ let create_archive file_list lib_name =
          file_list descr_list;
        let infos =
          { lib_units = descr_list;
+           lib_requires = Lib.Name.uniquify requires;
            lib_ccobjs = !Clflags.ccobjs;
            lib_ccopts = !Clflags.all_ccopts } in
        output_value outchan infos;

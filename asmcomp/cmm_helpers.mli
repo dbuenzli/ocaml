@@ -603,7 +603,8 @@ val code_segment_table: string list -> phrase
 (** Generate data for a predefined exception *)
 val predef_exception: int -> string -> phrase
 
-val plugin_header: (Cmx_format.unit_infos * Digest.t) list -> phrase
+val plugin_header:
+  (Cmx_format.unit_infos * Digest.t) list -> requires:Lib.Name.t list -> phrase
 
 (** Emit constant symbols *)
 
