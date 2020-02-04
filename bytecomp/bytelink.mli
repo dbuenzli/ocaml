@@ -17,7 +17,7 @@ open Misc
 
 (* Link .cmo files and produce a bytecode executable. *)
 
-val link : filepath list -> filepath -> unit
+val link : Lib.Resolver.t -> filepath list -> filepath -> unit
 val reset : unit -> unit
 
 val check_consistency: filepath -> Cmo_format.compilation_unit -> unit
@@ -25,6 +25,7 @@ val check_consistency: filepath -> Cmo_format.compilation_unit -> unit
 val extract_crc_interfaces: unit -> crcs
 
 type error =
+  | Lib_resolution_error of filepath * string (** cma file and error *)
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath

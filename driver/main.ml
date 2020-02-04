@@ -86,7 +86,7 @@ let main () =
       Warnings.check_fatal ();
     end
     else if not !stop_early && !objfiles <> [] then begin
-      let target =
+      let out_file =
         if !output_c_object && not !output_complete_executable then
           let s = extract_output !output_name in
           if (Filename.check_suffix s Config.ext_obj
@@ -103,7 +103,11 @@ let main () =
           default_output !output_name
       in
       Compmisc.init_path () ~libs:[];
-      Bytelink.link (get_objfiles ~with_ocamlparam:true) target;
+      let lib_resolver = Compmisc.get_lib_resolver () in
+      let libs = Compmisc.get_required_libs lib_resolver in
+      let lib_cmas = Compmisc.get_libs_files Lib.cma libs in
+      let objs = Compenv.get_objfiles ~with_ocamlparam:true in
+      Bytelink.link lib_resolver (lib_cmas @ objs) out_file;
       Warnings.check_fatal ();
     end;
   with x ->

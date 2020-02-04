@@ -20,6 +20,7 @@ open Config
 open Cmo_format
 
 type error =
+  | Lib_resolution_error of filepath * string
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
@@ -48,28 +49,58 @@ let read_cmo_info file_name ic =
   close_in ic;
   `Cmo (file_name, compunit)
 
-let read_cma_info file_name ic =
+let rec read_cma_info file_name ic lib_resolver cma_seen rev_infos =
   let pos_toc = input_binary_int ic in    (* Go to table of contents *)
   seek_in ic pos_toc;
   let toc = (input_value ic : library) in
   close_in ic;
-  `Cma (file_name, toc)
+  let cma_seen = Stdlib.String.Set.add file_name cma_seen in
+  let cma_seen, rev_infos =
+    (* Before adding the info for the cma to [rev_infos] we add the
+       info for the cmas of the libraries it requires; for those not
+       already seen and recursively. Implicitely this makes a stable
+       topological sort of the cmas and their required libraries by
+       depth first exploration of the library dependency DAG. The
+       recursive call to [read_objs_infos] below makes the procedure
+       not tailrec but stack size is bound by depth of the library
+       dependency DAG. *)
+    let add_lib_require_cma acc n =
+      let err cma e = raise (Error (Lib_resolution_error (cma, e))) in
+      match Lib.Resolver.get lib_resolver n with
+      | Error e -> err file_name e
+      | Ok l ->
+          match Lib.cma l with
+          | Error e -> err file_name e
+          | Ok cma when Stdlib.String.Set.mem cma cma_seen -> acc
+          | Ok cma -> cma :: acc
+    in
+    let rev_cmas = List.fold_left add_lib_require_cma [] toc.lib_requires in
+    read_objs_infos lib_resolver cma_seen rev_infos (List.rev rev_cmas)
+  in
+  cma_seen, `Cma (file_name, toc) :: rev_infos
 
-let rec read_objs_infos rev_infos = function
-  | [] -> rev_infos
+and read_objs_infos lib_resolver cma_seen rev_infos = function
+  | [] -> cma_seen, rev_infos
   | obj_name :: obj_names ->
       let file_name =
         try Load_path.find obj_name
         with Not_found -> raise (Error (File_not_found obj_name))
       in
+      if Stdlib.String.Set.mem file_name cma_seen
+      then read_objs_infos lib_resolver cma_seen rev_infos obj_names else
       let ic = open_in_bin file_name in
       try
         let magic = really_input_string ic (String.length cmo_magic_number) in
-        if magic = cmo_magic_number then
-          read_objs_infos (read_cmo_info file_name ic :: rev_infos) obj_names
-        else if magic = cma_magic_number then
-          read_objs_infos (read_cma_info file_name ic :: rev_infos) obj_names
-        else
+        if magic = cmo_magic_number then begin
+          let rev_infos = read_cmo_info file_name ic :: rev_infos in
+          read_objs_infos lib_resolver cma_seen rev_infos obj_names
+        end
+        else if magic = cma_magic_number then begin
+          let cma_seen, rev_infos =
+            read_cma_info file_name ic lib_resolver cma_seen rev_infos
+          in
+          read_objs_infos lib_resolver cma_seen rev_infos obj_names
+        end else
           raise (Error (Not_an_object_file file_name))
       with
       | End_of_file -> close_in ic; raise (Error (Not_an_object_file file_name))
@@ -613,7 +644,7 @@ let fix_exec_name name =
 
 (* Main entry point (build a custom runtime if needed) *)
 
-let link objfiles output_name =
+let link lib_resolver objfiles output_name =
   let objfiles =
     if !Clflags.nopervasives then objfiles
     else if !Clflags.output_c_object then "stdlib.cma" :: objfiles
@@ -621,7 +652,9 @@ let link objfiles output_name =
   (* [read_objs_infos] processes objfiles from left-to-right and returns
      info in reverse order. This means that the left fold with link_obj
      for link effects processes objfiles from right-to-left. *)
-  let rev_obj_infos = read_objs_infos [] objfiles in
+  let _, rev_obj_infos =
+    read_objs_infos lib_resolver Stdlib.String.Set.empty [] objfiles
+  in
   let tolink = List.fold_left link_obj [] rev_obj_infos in
   let missing_modules =
     Ident.Set.filter (fun id -> not (Ident.is_predef id)) !missing_globals
@@ -735,6 +768,8 @@ let link objfiles output_name =
 open Format
 
 let report_error ppf = function
+  | Lib_resolution_error (cma, err) ->
+      fprintf ppf "@[%s@]" (Lib.Resolver.err_in_archive ~file:cma err)
   | File_not_found name ->
       fprintf ppf "Cannot find file %a" Location.print_filename name
   | Not_an_object_file name ->
