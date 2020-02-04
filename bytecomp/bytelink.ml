@@ -107,6 +107,46 @@ let remove_required (rel, _pos) =
       missing_globals := Ident.Map.remove id !missing_globals
   | _ -> ()
 
+let read_cmo_info file_name ic =
+  let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
+  seek_in ic compunit_pos;
+  let compunit = (input_value ic : compilation_unit) in
+  close_in ic;
+  file_name, compunit
+
+let read_cma_info file_name ic =
+  let pos_toc = input_binary_int ic in    (* Go to table of contents *)
+  seek_in ic pos_toc;
+  let toc = (input_value ic : library) in
+  close_in ic;
+  file_name, toc
+
+let scan_cmo file_name compunit =
+  (* This is a .cmo file. It must be linked in any case.
+     The relocation information indicates which modules it requires. *)
+  add_required compunit;
+  List.iter remove_required compunit.cu_reloc;
+  Link_object(file_name, compunit)
+
+let scan_cma file_name toc =
+  (* This is an archive file. Each unit contained in it will be linked
+     in only if needed. *)
+  add_ccobjs (Filename.dirname file_name) toc;
+  let required =
+    List.fold_right
+      (fun compunit reqd ->
+         if compunit.cu_force_link
+         || !Clflags.link_everything
+         || List.exists is_required compunit.cu_reloc
+         then begin
+           add_required compunit;
+           List.iter remove_required compunit.cu_reloc;
+           compunit :: reqd
+         end else
+         reqd)
+      toc.lib_units [] in
+  Link_archive(file_name, required)
+
 let scan_file obj_name tolink =
   let file_name =
     try
@@ -117,39 +157,12 @@ let scan_file obj_name tolink =
   try
     let buffer = really_input_string ic (String.length cmo_magic_number) in
     if buffer = cmo_magic_number then begin
-      (* This is a .cmo file. It must be linked in any case.
-         Read the relocation information to see which modules it
-         requires. *)
-      let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
-      seek_in ic compunit_pos;
-      let compunit = (input_value ic : compilation_unit) in
-      close_in ic;
-      add_required compunit;
-      List.iter remove_required compunit.cu_reloc;
-      Link_object(file_name, compunit) :: tolink
+      let file_name, compunit = read_cmo_info file_name ic in
+      scan_cmo file_name compunit :: tolink
     end
     else if buffer = cma_magic_number then begin
-      (* This is an archive file. Each unit contained in it will be linked
-         in only if needed. *)
-      let pos_toc = input_binary_int ic in    (* Go to table of contents *)
-      seek_in ic pos_toc;
-      let toc = (input_value ic : library) in
-      close_in ic;
-      add_ccobjs (Filename.dirname file_name) toc;
-      let required =
-        List.fold_right
-          (fun compunit reqd ->
-            if compunit.cu_force_link
-            || !Clflags.link_everything
-            || List.exists is_required compunit.cu_reloc
-            then begin
-              add_required compunit;
-              List.iter remove_required compunit.cu_reloc;
-              compunit :: reqd
-            end else
-              reqd)
-          toc.lib_units [] in
-      Link_archive(file_name, required) :: tolink
+      let file_name, toc = read_cma_info file_name ic in
+      scan_cma file_name toc :: to_link
     end
     else raise(Error(Not_an_object_file file_name))
   with
