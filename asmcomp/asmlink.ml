@@ -189,30 +189,34 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
+let link_unit file_name info crc =
+  (* This is a .cmx file. It must be linked in any case. *)
+  remove_required info.ui_name;
+  List.iter (add_required file_name) info.ui_imports_cmx;
+  (info, file_name, crc)
+
+let link_library file_name infos tolink =
+  (* This is an archive file. Each unit contained in it will be linked
+     in only if needed. *)
+  add_ccobjs (Filename.dirname file_name) infos;
+  List.fold_right
+    (fun (info, crc) reqd ->
+       if info.ui_force_link
+       || !Clflags.link_everything
+       || is_required info.ui_name
+       then begin
+         remove_required info.ui_name;
+         List.iter (add_required (Printf.sprintf "%s(%s)"
+                                    file_name info.ui_name))
+           info.ui_imports_cmx;
+         (info, file_name, crc) :: reqd
+       end else
+       reqd)
+    infos.lib_units tolink
+
 let scan_file obj_name tolink = match read_file obj_name with
-  | Unit (file_name,info,crc) ->
-      (* This is a .cmx file. It must be linked in any case. *)
-      remove_required info.ui_name;
-      List.iter (add_required file_name) info.ui_imports_cmx;
-      (info, file_name, crc) :: tolink
-  | Library (file_name,infos) ->
-      (* This is an archive file. Each unit contained in it will be linked
-         in only if needed. *)
-      add_ccobjs (Filename.dirname file_name) infos;
-      List.fold_right
-        (fun (info, crc) reqd ->
-           if info.ui_force_link
-             || !Clflags.link_everything
-             || is_required info.ui_name
-           then begin
-             remove_required info.ui_name;
-             List.iter (add_required (Printf.sprintf "%s(%s)"
-                                        file_name info.ui_name))
-               info.ui_imports_cmx;
-             (info, file_name, crc) :: reqd
-           end else
-             reqd)
-        infos.lib_units tolink
+  | Unit (file_name,info,crc) -> link_unit file_name info crc :: tolink
+  | Library (file_name,infos) -> link_library file_name infos tolink
 
 (* Second pass: generate the startup file and link it with everything else *)
 
