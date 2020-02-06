@@ -111,7 +111,7 @@ let main () =
       Warnings.check_fatal ();
     end
     else if not !stop_early && !objfiles <> [] then begin
-      let target =
+      let out_file =
         if !output_c_object then
           let s = extract_output !output_name in
           if (Filename.check_suffix s Config.ext_obj
@@ -127,8 +127,12 @@ let main () =
           default_output !output_name
       in
       Compmisc.init_path () ~libs:[];
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Asmlink.link ~ppf_dump (get_objfiles ~with_ocamlparam:true) target);
+      let lib_resolver = Compmisc.get_lib_resolver () in
+      let libs = Compmisc.get_required_libs lib_resolver in
+      let lib_cmxas = Compmisc.get_libs_files Lib.cmxa libs in
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:true in
+      Compmisc.with_ppf_dump ~file_prefix:out_file (fun ppf_dump ->
+        Asmlink.link ~ppf_dump lib_resolver (lib_cmxas @ objfiles) out_file);
       Warnings.check_fatal ();
     end;
   with x ->

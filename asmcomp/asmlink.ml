@@ -22,6 +22,7 @@ open Cmx_format
 module String = Misc.Stdlib.String
 
 type error =
+  | Lib_resolution_error of filepath * string
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (modname * string list) list
@@ -40,8 +41,8 @@ type obj_info =
   | Unit of string * unit_infos * Digest.t
   | Library of string * library_infos
 
-let rec read_objs_infos rev_infos = function
-  | [] -> rev_infos
+let rec read_objs_infos ~lib_resolver cmxa_seen rev_infos = function
+  | [] -> cmxa_seen, rev_infos
   | obj_name :: obj_names ->
       let file_name =
         try Load_path.find obj_name
@@ -50,17 +51,62 @@ let rec read_objs_infos rev_infos = function
       if Filename.check_suffix file_name ".cmx" then
         begin
           let (info, crc) = Compilenv.read_unit_info file_name in
-          read_objs_infos (Unit (file_name, info, crc) :: rev_infos) obj_names
+          let rev_infos = Unit (file_name, info, crc) :: rev_infos in
+          read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
         end
       else if Filename.check_suffix file_name ".cmxa" then
-        begin
-          let infos =
-            try Compilenv.read_library_info file_name
-            with Compilenv.Error (Not_a_unit_info _) ->
-              raise (Error (Not_an_object_file file_name))
-          in
-          read_objs_infos (Library (file_name, infos) :: rev_infos) obj_names
-        end
+        match lib_resolver with
+        | None -> (* This is for [Asmlink.link_share], the lib_requires of cmxa
+                     files are not resolved. Instead they are added to the final
+                     cmxs metadata via add_ccobjs during [link_obj]. Note that
+                     this execution path does not care about or update
+                     [cmxa_seen]. *)
+            let infos =
+              try Compilenv.read_library_info file_name
+              with Compilenv.Error (Not_a_unit_info _) ->
+                raise (Error (Not_an_object_file file_name))
+            in
+            let rev_infos = Library (file_name, infos) :: rev_infos in
+            read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
+        | Some r -> (* This is for [Asmlink.link]. *)
+            if Stdlib.String.Set.mem file_name cmxa_seen
+            then read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
+            else begin
+              let infos =
+                try Compilenv.read_library_info file_name
+                with Compilenv.Error (Not_a_unit_info _) ->
+                  raise (Error (Not_an_object_file file_name))
+              in
+              let cmxa_seen = Stdlib.String.Set.add file_name cmxa_seen in
+              let cmxa_seen, rev_infos =
+                (* Before adding the info for the cmxa to [rev_infos] we
+                   add the info for the cmxas of the libraries it requires;
+                   for those not already seen and recursively. Implicitely
+                   this makes a stable topological sort of the cmxas and their
+                   required libraries by depth first exploration of the library
+                   dependency DAG. The recursive call to [read_obj_infos] below
+                   makes the procedure not tailrec but stack size is bound by
+                   depth of the library dependency DAG. *)
+                let add_lib_require_cmxa acc n =
+                  let err cmxa e =
+                    raise (Error (Lib_resolution_error (cmxa, e)))
+                  in
+                  match Lib.Resolver.get r n with
+                  | Error e -> err file_name e
+                  | Ok l ->
+                      match Lib.cmxa l with
+                      | Error e -> err file_name e
+                      | Ok cmxa when Stdlib.String.Set.mem cmxa cmxa_seen -> acc
+                      | Ok cmxa -> cmxa :: acc
+                in
+                let reqs = infos.lib_requires in
+                let rev_cmxas = List.fold_left add_lib_require_cmxa [] reqs in
+                let cmxas = List.rev rev_cmxas in
+                read_objs_infos ~lib_resolver cmxa_seen rev_infos cmxas
+              in
+              let rev_infos = Library (file_name, infos) :: rev_infos in
+              read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
+            end
       else
         raise (Error (Not_an_object_file file_name))
 
@@ -290,7 +336,9 @@ let link_shared ~ppf_dump ~requires objfiles output_name =
    (* [read_objs_infos] processes objfiles from left-to-right and returns
       info in reverse order. This means that the left fold with link_obj
       for link effects processes objfiles from right-to-left. *)
-    let rev_obj_infos = read_objs_infos [] objfiles in
+    let _, rev_obj_infos =
+      read_objs_infos ~lib_resolver:None Stdlib.String.Set.empty [] objfiles
+    in
     let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     List.iter
       (fun (info, file_name, crc) -> check_consistency file_name info crc)
@@ -345,7 +393,7 @@ let call_linker file_list startup_file output_name =
 
 (* Main entry point *)
 
-let link ~ppf_dump objfiles output_name =
+let link ~ppf_dump lib_resolver objfiles output_name =
   Profile.record_call output_name (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
@@ -356,7 +404,10 @@ let link ~ppf_dump objfiles output_name =
    (* [read_objs_infos] processes objfiles from left-to-right and returns
       info in reverse order. This means that the left fold with link_obj
       for link effects processes objfiles from right-to-left. *)
-    let rev_obj_infos = read_objs_infos [] objfiles in
+    let _, rev_obj_infos =
+      let lib_resolver = Some lib_resolver in
+      read_objs_infos ~lib_resolver Stdlib.String.Set.empty [] objfiles
+    in
     let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
@@ -390,6 +441,8 @@ let link ~ppf_dump objfiles output_name =
 open Format
 
 let report_error ppf = function
+  | Lib_resolution_error (cmxa, err) ->
+      fprintf ppf "@[%s@]" (Lib.Resolver.err_in_archive ~file:cmxa err)
   | File_not_found name ->
       fprintf ppf "Cannot find file %s" name
   | Not_an_object_file name ->

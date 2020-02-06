@@ -18,7 +18,7 @@
 open Misc
 open Format
 
-val link: ppf_dump:formatter -> string list -> string -> unit
+val link: ppf_dump:formatter -> Lib.Resolver.t -> string list -> string -> unit
 
 val link_shared:
   ppf_dump:formatter -> requires:Lib.Name.t list -> string list -> string ->
@@ -32,6 +32,7 @@ val extract_crc_interfaces: unit -> crcs
 val extract_crc_implementations: unit -> crcs
 
 type error =
+  | Lib_resolution_error of filepath * string
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (modname * string list) list
