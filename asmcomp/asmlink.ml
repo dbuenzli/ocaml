@@ -18,7 +18,6 @@
 open Misc
 open Config
 open Cmx_format
-open Compilenv
 
 module String = Misc.Stdlib.String
 
@@ -177,12 +176,12 @@ let read_file obj_name =
   if Filename.check_suffix file_name ".cmx" then begin
     (* This is a .cmx file. It must be linked in any case.
        Read the infos to see which modules it requires. *)
-    let (info, crc) = read_unit_info file_name in
+    let (info, crc) = Compilenv.read_unit_info file_name in
     Unit (file_name,info,crc)
   end
   else if Filename.check_suffix file_name ".cmxa" then begin
     let infos =
-      try read_library_info file_name
+      try Compilenv.read_library_info file_name
       with Compilenv.Error(Not_a_unit_info _) ->
         raise(Error(Not_an_object_file file_name))
     in
