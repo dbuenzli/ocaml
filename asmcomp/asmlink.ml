@@ -34,6 +34,36 @@ type error =
 
 exception Error of error
 
+(* Read native code objects information *)
+
+type obj_info =
+  | Unit of string * unit_infos * Digest.t
+  | Library of string * library_infos
+
+let rec read_objs_infos rev_infos = function
+  | [] -> rev_infos
+  | obj_name :: obj_names ->
+      let file_name =
+        try Load_path.find obj_name
+        with Not_found -> raise (Error (File_not_found obj_name))
+      in
+      if Filename.check_suffix file_name ".cmx" then
+        begin
+          let (info, crc) = Compilenv.read_unit_info file_name in
+          read_objs_infos (Unit (file_name, info, crc) :: rev_infos) obj_names
+        end
+      else if Filename.check_suffix file_name ".cmxa" then
+        begin
+          let infos =
+            try Compilenv.read_library_info file_name
+            with Compilenv.Error (Not_a_unit_info _) ->
+              raise (Error (Not_an_object_file file_name))
+          in
+          read_objs_infos (Library (file_name, infos) :: rev_infos) obj_names
+        end
+      else
+        raise (Error (Not_an_object_file file_name))
+
 (* Consistency check between interfaces and implementations *)
 
 module Cmi_consistbl = Consistbl.Make (Misc.Stdlib.String)
@@ -163,32 +193,6 @@ let extract_missing_globals () =
   Hashtbl.iter (fun md rq -> mg := (md, !rq) :: !mg) missing_globals;
   !mg
 
-type file =
-  | Unit of string * unit_infos * Digest.t
-  | Library of string * library_infos
-
-let read_file obj_name =
-  let file_name =
-    try
-      Load_path.find obj_name
-    with Not_found ->
-      raise(Error(File_not_found obj_name)) in
-  if Filename.check_suffix file_name ".cmx" then begin
-    (* This is a .cmx file. It must be linked in any case.
-       Read the infos to see which modules it requires. *)
-    let (info, crc) = Compilenv.read_unit_info file_name in
-    Unit (file_name,info,crc)
-  end
-  else if Filename.check_suffix file_name ".cmxa" then begin
-    let infos =
-      try Compilenv.read_library_info file_name
-      with Compilenv.Error(Not_a_unit_info _) ->
-        raise(Error(Not_an_object_file file_name))
-    in
-    Library (file_name,infos)
-  end
-  else raise(Error(Not_an_object_file file_name))
-
 let link_unit file_name info crc =
   (* This is a .cmx file. It must be linked in any case. *)
   remove_required info.ui_name;
@@ -214,9 +218,9 @@ let link_library file_name infos tolink =
        reqd)
     infos.lib_units tolink
 
-let scan_file obj_name tolink = match read_file obj_name with
-  | Unit (file_name,info,crc) -> link_unit file_name info crc :: tolink
-  | Library (file_name,infos) -> link_library file_name infos tolink
+let link_obj tolink = function
+  | Unit (file_name, info, crc) -> link_unit file_name info crc :: tolink
+  | Library (file_name, infos) -> link_library file_name infos tolink
 
 (* Second pass: generate the startup file and link it with everything else *)
 
@@ -292,7 +296,11 @@ let call_linker_shared file_list output_name =
 
 let link_shared ~ppf_dump ~requires objfiles output_name =
   Profile.record_call output_name (fun () ->
-    let units_tolink = List.fold_right scan_file objfiles [] in
+   (* [read_objs_infos] processes objfiles from left-to-right and returns
+      info in reverse order. This means that the left fold with link_obj
+      for link effects processes objfiles from right-to-left. *)
+    let rev_obj_infos = read_objs_infos [] objfiles in
+    let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     List.iter
       (fun (info, file_name, crc) -> check_consistency file_name info crc)
       units_tolink;
@@ -355,7 +363,11 @@ let link ~ppf_dump objfiles output_name =
       if !Clflags.nopervasives then objfiles
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
-    let units_tolink = List.fold_right scan_file objfiles [] in
+   (* [read_objs_infos] processes objfiles from left-to-right and returns
+      info in reverse order. This means that the left fold with link_obj
+      for link effects processes objfiles from right-to-left. *)
+    let rev_obj_infos = read_objs_infos [] objfiles in
+    let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
       [] -> ()
