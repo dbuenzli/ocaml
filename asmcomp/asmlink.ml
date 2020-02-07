@@ -64,6 +64,10 @@ let rec read_objs_infos rev_infos = function
       else
         raise (Error (Not_an_object_file file_name))
 
+let obj_info_file_name = function
+  | Unit (file_name, _, _) -> Filename.chop_suffix file_name ".cmx" ^ ext_obj
+  | Library (file_name, _) -> Filename.chop_suffix file_name ".cmxa" ^ ext_lib
+
 (* Consistency check between interfaces and implementations *)
 
 module Cmi_consistbl = Consistbl.Make (Misc.Stdlib.String)
@@ -156,19 +160,6 @@ let runtime_lib () =
     else [ Load_path.find libname ]
   with Not_found ->
     raise(Error(File_not_found libname))
-
-let object_file_name name =
-  let file_name =
-    try
-      Load_path.find name
-    with Not_found ->
-      fatal_errorf "Asmlink.object_file_name: %s not found" name in
-  if Filename.check_suffix file_name ".cmx" then
-    Filename.chop_suffix file_name ".cmx" ^ ext_obj
-  else if Filename.check_suffix file_name ".cmxa" then
-    Filename.chop_suffix file_name ".cmxa" ^ ext_lib
-  else
-    fatal_error "Asmlink.object_file_name: bad ext"
 
 (* First pass: determine which units are needed *)
 
@@ -306,9 +297,8 @@ let link_shared ~ppf_dump ~requires objfiles output_name =
       units_tolink;
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
-    let objfiles = List.rev (List.map object_file_name objfiles) @
+    let objfiles = List.rev (List.rev_map obj_info_file_name rev_obj_infos) @
       (List.rev !Clflags.ccobjs) in
-
     let startup =
       if !Clflags.keep_startup_file || !Emitaux.binary_backend_available
       then output_name ^ ".startup" ^ ext_asm
@@ -390,7 +380,7 @@ let link ~ppf_dump objfiles output_name =
       (fun () -> make_startup_file ~ppf_dump units_tolink ~crc_interfaces);
     Misc.try_finally
       (fun () ->
-         call_linker (List.map object_file_name objfiles)
+         call_linker (List.rev_map obj_info_file_name rev_obj_infos)
            startup_obj output_name)
       ~always:(fun () -> remove_file startup_obj)
   )
