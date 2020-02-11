@@ -81,12 +81,14 @@ let rec read_objs_infos ~lib_resolver cmxa_seen rev_infos = function
               let cmxa_seen, rev_infos =
                 (* Before adding the info for the cmxa to [rev_infos] we
                    add the info for the cmxas of the libraries it requires;
-                   for those not already seen and recursively. Implicitely
+                   for those not already seen and recursively and if
+                   [-noautoliblink] is not specified. Implicitely
                    this makes a stable topological sort of the cmxas and their
                    required libraries by depth first exploration of the library
                    dependency DAG. The recursive call to [read_obj_infos] below
                    makes the procedure not tailrec but stack size is bound by
                    depth of the library dependency DAG. *)
+                if !Clflags.no_auto_lib_link then cmxa_seen, rev_infos else
                 let add_lib_require_cmxa acc n =
                   let err cmxa e =
                     raise (Error (Lib_resolution_error (cmxa, e)))

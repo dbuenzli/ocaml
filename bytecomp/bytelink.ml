@@ -58,12 +58,14 @@ let rec read_cma_info file_name ic lib_resolver cma_seen rev_infos =
   let cma_seen, rev_infos =
     (* Before adding the info for the cma to [rev_infos] we add the
        info for the cmas of the libraries it requires; for those not
-       already seen and recursively. Implicitely this makes a stable
+       already seen and recursively and if [-noautoliblink] is not
+       specified. Implicitely this makes a stable
        topological sort of the cmas and their required libraries by
        depth first exploration of the library dependency DAG. The
        recursive call to [read_objs_infos] below makes the procedure
        not tailrec but stack size is bound by depth of the library
        dependency DAG. *)
+    if !Clflags.no_auto_lib_link then cma_seen, rev_infos else
     let add_lib_require_cma acc n =
       let err cma e = raise (Error (Lib_resolution_error (cma, e))) in
       match Lib.Resolver.get lib_resolver n with
