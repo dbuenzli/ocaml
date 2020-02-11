@@ -49,7 +49,9 @@ let lib_dllibs = ref []
    left to right, hence options must be added after. *)
 
 let add_ccobjs l =
-  lib_requires := l.lib_requires :: !lib_requires;
+  if not !Clflags.no_auto_lib_link then begin
+    lib_requires := l.lib_requires :: !lib_requires;
+  end;
   if not !Clflags.no_auto_link then begin
     if l.lib_custom then Clflags.custom_runtime := true;
     lib_ccobjs := !lib_ccobjs @ l.lib_ccobjs;

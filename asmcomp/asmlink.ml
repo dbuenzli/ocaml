@@ -58,9 +58,9 @@ let rec read_objs_infos ~lib_resolver cmxa_seen rev_infos = function
         match lib_resolver with
         | None -> (* This is for [Asmlink.link_share], the lib_requires of cmxa
                      files are not resolved. Instead they are added to the final
-                     cmxs metadata via add_ccobjs during [link_obj]. Note that
-                     this execution path does not care about or update
-                     [cmxa_seen]. *)
+                     cmxs metadata via add_ccobjs during [link_obj], unless
+                     [-noautoliblink] is specified. Note that this execution
+                     path does not care about or update [cmxa_seen]. *)
             let infos =
               try Compilenv.read_library_info file_name
               with Compilenv.Error (Not_a_unit_info _) ->
@@ -190,7 +190,9 @@ let lib_ccobjs = ref []
 let lib_ccopts = ref []
 
 let add_ccobjs origin l =
-  lib_requires := l.lib_requires :: !lib_requires;
+  if not !Clflags.no_auto_lib_link then begin
+    lib_requires := l.lib_requires :: !lib_requires;
+  end;
   if not !Clflags.no_auto_link then begin
     lib_ccobjs := l.lib_ccobjs @ !lib_ccobjs;
     let replace_origin =
