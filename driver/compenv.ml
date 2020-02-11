@@ -207,6 +207,7 @@ let read_one_param ppf position name v =
   | "compat-32" -> set "compat-32" [ bytecode_compatible_32 ] v
   | "noassert" -> set "noassert" [ noassert ] v
   | "noautolink" -> set "noautolink" [ no_auto_link ] v
+  | "noautoliblink" -> set "noautoliblink" [ no_auto_lib_link ] v
   | "nostdlib" -> set "nostdlib" [ no_std_include ] v
   | "linkall" -> set "linkall" [ link_everything ] v
   | "nolabels" -> set "nolabels" [ classic ] v

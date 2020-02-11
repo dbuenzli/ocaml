@@ -94,6 +94,7 @@ module type Compiler_options = sig
   val _no_keep_locs : unit -> unit
   val _linkall : unit -> unit
   val _noautolink : unit -> unit
+  val _noautoliblink : unit -> unit
   val _o : string -> unit
   val _opaque :  unit -> unit
   val _output_obj : unit -> unit

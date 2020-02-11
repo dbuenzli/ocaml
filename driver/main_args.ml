@@ -350,6 +350,16 @@ let mk_noassert f =
   "-noassert", Arg.Unit f, " Do not compile assertion checks"
 ;;
 
+let mk_noautoliblink_byt f =
+  "-noautoliblink", Arg.Unit f,
+  " Do not automatically link OCaml libraries specified in .cma files"
+;;
+
+let mk_noautoliblink_opt f =
+  "-noautoliblink", Arg.Unit f,
+  " Do not automatically link OCaml libraries specified in .cmxa files"
+;;
+
 let mk_noautolink_byt f =
   "-noautolink", Arg.Unit f,
   " Do not automatically link C libraries specified in .cma files"
@@ -969,6 +979,7 @@ module type Compiler_options = sig
   val _no_keep_locs : unit -> unit
   val _linkall : unit -> unit
   val _noautolink : unit -> unit
+  val _noautoliblink : unit -> unit
   val _o : string -> unit
   val _opaque :  unit -> unit
   val _output_obj : unit -> unit
@@ -1180,6 +1191,7 @@ struct
     mk_no_app_funct F._no_app_funct;
     mk_no_check_prims F._no_check_prims;
     mk_noassert F._noassert;
+    mk_noautoliblink_byt F._noautoliblink;
     mk_noautolink_byt F._noautolink;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1369,6 +1381,7 @@ struct
     mk_no_app_funct F._no_app_funct;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
+    mk_noautoliblink_opt F._noautoliblink;
     mk_noautolink_opt F._noautolink;
     mk_nodynlink F._nodynlink;
     mk_no_insn_sched F._no_insn_sched;
@@ -1857,6 +1870,7 @@ module Default = struct
     let _match_context_rows n = match_context_rows := n
     let _no_keep_docs = clear keep_docs
     let _no_keep_locs = clear keep_locs
+    let _noautoliblink = set no_auto_lib_link
     let _noautolink = set no_auto_link
     let _o s = output_name := (Some s)
     let _opaque = set opaque
