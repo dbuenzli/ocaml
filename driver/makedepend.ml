@@ -403,18 +403,25 @@ let mli_file_dependencies source_file =
   in
   files := (source_file, MLI, extracted_deps, !Depend.pp_deps) :: !files
 
-let process_file_as process_fun def source_file =
+
+let process_file_as : 'a. (Misc.filepath -> 'a) -> 'a -> Misc.filepath -> 'a =
+  let resolver = lazy (Compmisc.get_lib_resolver ()) in
+  fun process_fun def source_file ->
   Compenv.readenv ppf (Before_compile source_file);
+  let libs = Compmisc.get_required_libs (Lazy.force resolver) in
+  let lib_incs_rev = List.rev_map Lib.dir libs in
   load_path := [];
   List.iter add_to_load_path (
-      (!Compenv.last_include_dirs @
-       !Clflags.include_dirs @
-       !Compenv.first_include_dirs
-      ));
+    (!Compenv.last_include_dirs @
+     lib_incs_rev @
+     !Clflags.include_dirs @
+     !Compenv.first_include_dirs
+    ));
   Location.input_name := source_file;
   try
     if Sys.file_exists source_file then process_fun source_file else def
   with x -> report_err x; def
+
 
 let process_file source_file ~ml_file ~mli_file ~def =
   if List.exists (Filename.check_suffix source_file) !ml_synonyms then
@@ -634,6 +641,10 @@ let main () =
          "<cmd>  Pipe sources through preprocessor <cmd>";
      "-ppx", Arg.String (add_to_list first_ppx),
          "<cmd>  Pipe abstract syntax trees through preprocessor <cmd>";
+     "-require", Arg.String (fun s -> match Lib.Name.of_string s with
+         | Ok lib -> add_to_list Clflags.requires_rev lib
+         | Error e -> raise (Arg.Bad e)),
+         "<lib>  Add <lib> to the list of required libraries";
      "-shared", Arg.Set shared,
          " Generate dependencies for native plugin files (.cmxs targets)";
      "-slash", Arg.Set Clflags.force_slash,
