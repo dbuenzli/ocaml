@@ -320,6 +320,7 @@ main.cmo : \
     ../utils/misc.cmi \
     loadprinter.cmi \
     ../utils/load_path.cmi \
+    ../utils/lib.cmi \
     input_handling.cmi \
     frames.cmi \
     exec.cmi \
@@ -342,6 +343,7 @@ main.cmx : \
     ../utils/misc.cmx \
     loadprinter.cmx \
     ../utils/load_path.cmx \
+    ../utils/lib.cmx \
     input_handling.cmx \
     frames.cmx \
     exec.cmx \
