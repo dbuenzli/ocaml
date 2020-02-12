@@ -152,6 +152,8 @@ let parse_arguments argv =
       output_c := next_arg s
     else if s = "-dllpath" || s = "-R" || s = "-rpath" then
       rpath := next_arg s :: !rpath
+    else if s = "-require" then
+      caml_opts := next_arg s :: "-require" :: !caml_opts
     else if starts_with s "-R" then
       rpath := chop_prefix s "-R" :: !rpath
     else if s = "-Wl,-rpath" then
@@ -217,6 +219,7 @@ Usage: ocamlmklib [options] <.cmo|.cma|.cmx|.ml|.mli|.o|.a|.obj|.lib|\
 \n  -ocamloptflags <opt>  Pass <opt> to ocamlopt\
 \n  -o <name>      Generated OCaml library is named <name>.cma or <name>.cmxa\
 \n  -oc <name>     Generated C library is named dll<name>.so or lib<name>.a\
+\n  -require <lib> Add <lib> to the list of required OCaml libraries\
 \n  -rpath <dir>   Same as -dllpath <dir>\
 \n  -R<dir>        Same as -rpath\
 \n  -verbose       Print commands before executing them\
