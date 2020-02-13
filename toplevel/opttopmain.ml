@@ -112,5 +112,10 @@ let main () =
   end;
   Compmisc.read_clflags_from_env ();
   if not (prepare Format.err_formatter) then exit 2;
-  Compmisc.init_path ();
+  let libs =
+    let assumed = Lib.Name.Set.of_list !Clflags.assumed_requires_rev in
+    let prune = Lib.Name.Set.union Opttoploop.statically_linked_libs assumed in
+    Compmisc.get_required_libs ~prune (Compmisc.get_lib_resolver ())
+  in
+  Compmisc.init_path () ~libs;
   Opttoploop.loop Format.std_formatter

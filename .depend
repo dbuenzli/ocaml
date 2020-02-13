@@ -6079,7 +6079,6 @@ toplevel/opttopdirs.cmo : \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
-    driver/compmisc.cmi \
     utils/clflags.cmi \
     asmcomp/asmlink.cmi \
     toplevel/opttopdirs.cmi
@@ -6096,7 +6095,6 @@ toplevel/opttopdirs.cmx : \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
-    driver/compmisc.cmx \
     utils/clflags.cmx \
     asmcomp/asmlink.cmx \
     toplevel/opttopdirs.cmi
@@ -6127,6 +6125,7 @@ toplevel/opttoploop.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     parsing/lexer.cmi \
     lambda/lambda.cmi \
     typing/includemod.cmi \
@@ -6174,6 +6173,7 @@ toplevel/opttoploop.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     parsing/lexer.cmx \
     lambda/lambda.cmx \
     typing/includemod.cmx \
@@ -6204,6 +6204,7 @@ toplevel/opttoploop.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     typing/env.cmi
 toplevel/opttopmain.cmo : \
     toplevel/opttoploop.cmi \
@@ -6318,6 +6319,7 @@ toplevel/toploop.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     parsing/lexer.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
@@ -6362,6 +6364,7 @@ toplevel/toploop.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     parsing/lexer.cmx \
     typing/includemod.cmx \
     typing/ident.cmx \
@@ -6386,6 +6389,7 @@ toplevel/toploop.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     typing/env.cmi
 toplevel/topmain.cmo : \
     toplevel/toploop.cmi \
