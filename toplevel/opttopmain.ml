@@ -38,15 +38,16 @@ let expand_position pos len =
     (* New last position *)
     first_nonexpanded_pos := pos + len + 2
 
-
 let prepare ppf =
   Opttoploop.set_paths ();
   try
-    let res =
-      List.for_all (Opttopdirs.load_file ppf) (List.rev !preload_objects)
-    in
+    let load_obj obj = Opttopdirs.load_file ppf obj in
+    let load_lib lib = Opttopdirs.load_lib ppf (Lib.Name.to_string lib) in
+    let objs = List.rev !preload_objects in
+    let res_libs = List.for_all load_lib (List.rev !Clflags.requires_rev) in
+    let res_objs = List.for_all load_obj objs in
     Opttoploop.run_hooks Opttoploop.Startup;
-    res
+    res_libs && res_objs
   with x ->
     try Location.report_exception ppf x; false
     with x ->

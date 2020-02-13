@@ -39,14 +39,13 @@ let expand_position pos len =
 let prepare ppf =
   Toploop.set_paths ();
   try
-    let res =
-      let objects =
-        List.rev (!preload_objects @ !Compenv.first_objfiles)
-      in
-      List.for_all (Topdirs.load_file ppf) objects
-    in
+    let load_obj obj = Topdirs.load_file ppf obj in
+    let load_lib lib = Topdirs.load_lib ppf (Lib.Name.to_string lib) in
+    let objs = List.rev (!preload_objects @ !Compenv.first_objfiles) in
+    let res_libs = List.for_all load_lib (List.rev !Clflags.requires_rev) in
+    let res_objs = List.for_all load_obj objs in
     Toploop.run_hooks Toploop.Startup;
-    res
+    res_libs && res_objs
   with x ->
     try Location.report_exception ppf x; false
     with x ->

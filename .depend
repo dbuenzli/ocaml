@@ -6212,6 +6212,7 @@ toplevel/opttopmain.cmo : \
     utils/misc.cmi \
     driver/main_args.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     driver/compmisc.cmi \
     utils/clflags.cmi \
     toplevel/opttopmain.cmi
@@ -6221,6 +6222,7 @@ toplevel/opttopmain.cmx : \
     utils/misc.cmx \
     driver/main_args.cmx \
     parsing/location.cmx \
+    utils/lib.cmx \
     driver/compmisc.cmx \
     utils/clflags.cmx \
     toplevel/opttopmain.cmi
@@ -6397,6 +6399,7 @@ toplevel/topmain.cmo : \
     utils/misc.cmi \
     driver/main_args.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     driver/compmisc.cmi \
     driver/compenv.cmi \
     utils/clflags.cmi \
@@ -6407,6 +6410,7 @@ toplevel/topmain.cmx : \
     utils/misc.cmx \
     driver/main_args.cmx \
     parsing/location.cmx \
+    utils/lib.cmx \
     driver/compmisc.cmx \
     driver/compenv.cmx \
     utils/clflags.cmx \
