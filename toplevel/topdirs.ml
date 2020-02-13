@@ -178,50 +178,50 @@ let rec load_file recursive ppf name = match Load_path.find name with
     loaded
 
 and really_load_file recursive ppf name filename ic =
-  let buffer = really_input_string ic (String.length Config.cmo_magic_number) in
+  let b = really_input_string ic (String.length Config.cmo_magic_number) in
   try
-    if buffer = Config.cmo_magic_number then begin
-      let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
-      seek_in ic compunit_pos;
-      let cu : compilation_unit = input_value ic in
-      if recursive then
-        List.iter
-          (function
-            | (Reloc_getglobal id, _)
-              when not (Symtable.is_global_defined id) ->
-                let file = Ident.name id ^ ".cmo" in
-                begin match Load_path.find_uncap file with
-                | exception Not_found -> ()
-                | file ->
-                    if not (load_file recursive ppf file) then raise Load_failed
-                end
-            | _ -> ()
-          )
-          cu.cu_reloc;
-      load_compunit ic filename ppf cu;
-      true
-    end else
-      if buffer = Config.cma_magic_number then begin
-        let toc_pos = input_binary_int ic in  (* Go to table of contents *)
-        seek_in ic toc_pos;
-        let lib = (input_value ic : library) in
-        List.iter
-          (fun dllib ->
-            let name = Dll.extract_dll_name dllib in
-            try Dll.open_dlls Dll.For_execution [name]
-            with Failure reason ->
-              fprintf ppf
-                "Cannot load required shared library %s.@.Reason: %s.@."
-                name reason;
-              raise Load_failed)
-          lib.lib_dllibs;
-        List.iter (load_compunit ic filename ppf) lib.lib_units;
-        true
-      end else begin
-        fprintf ppf "File %s is not a bytecode object file.@." name;
-        false
-      end
+    if b = Config.cmo_magic_number then load_cmo ppf recursive filename ic else
+    if b = Config.cma_magic_number then load_cma ppf filename ic else
+    (fprintf ppf "File %s is not a bytecode object file.@." name; false)
   with Load_failed -> false
+
+and load_cmo ppf recursive filename ic =
+  let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
+  seek_in ic compunit_pos;
+  let cu : compilation_unit = input_value ic in
+  if recursive then
+    List.iter
+      (function
+        | (Reloc_getglobal id, _)
+          when not (Symtable.is_global_defined id) ->
+            let file = Ident.name id ^ ".cmo" in
+            begin match Load_path.find_uncap file with
+            | exception Not_found -> ()
+            | file ->
+                if not (load_file recursive ppf file) then raise Load_failed
+            end
+        | _ -> ()
+      )
+      cu.cu_reloc;
+  load_compunit ic filename ppf cu;
+  true
+
+and load_cma ppf filename ic =
+  let toc_pos = input_binary_int ic in  (* Go to table of contents *)
+  seek_in ic toc_pos;
+  let lib = (input_value ic : library) in
+  List.iter
+    (fun dllib ->
+      let name = Dll.extract_dll_name dllib in
+      try Dll.open_dlls Dll.For_execution [name]
+      with Failure reason ->
+        fprintf ppf
+          "Cannot load required shared library %s.@.Reason: %s.@."
+          name reason;
+        raise Load_failed)
+    lib.lib_dllibs;
+  List.iter (load_compunit ic filename ppf) lib.lib_units;
+  true
 
 let dir_load ppf name = ignore (load_file false ppf name)
 
