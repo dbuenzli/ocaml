@@ -210,6 +210,15 @@ and load_cma ppf filename ic =
   let toc_pos = input_binary_int ic in  (* Go to table of contents *)
   seek_in ic toc_pos;
   let lib = (input_value ic : library) in
+  let () =
+    (* Before loading the lib we load the libraries it requires; for those
+       not already loaded and recursively. This loads them in topogical order
+       by depth first exploration of the library dependency DAG. Not tailrec
+       but stack size and used fds are bound by depth of the library
+       dependency DAG. *)
+    let load_lib l = ignore (load_lib ppf ~from_file:(Some filename) l) in
+    List.iter load_lib lib.lib_requires
+  in
   List.iter
     (fun dllib ->
       let name = Dll.extract_dll_name dllib in
@@ -222,6 +231,23 @@ and load_cma ppf filename ic =
     lib.lib_dllibs;
   List.iter (load_compunit ic filename ppf) lib.lib_units;
   true
+
+and load_lib ppf ~from_file n =
+  if Lib.Name.Set.mem n !loaded_libs then None else
+  let handle_error = function
+    | Ok lib -> Some lib
+    | Error e ->
+        let e = match from_file with
+        | None -> e | Some file -> Lib.Resolver.err_in_archive ~file e
+        in
+        fprintf ppf "@[%s@]@." e; raise Load_failed
+  in
+  let lib_resolver = Compmisc.get_lib_resolver () in
+  handle_error @@
+  Result.bind (Lib.Resolver.get lib_resolver n) @@ fun lib ->
+  Result.bind (Lib.cma lib) @@ fun cma ->
+  if not (load_file false ppf cma) then raise Load_failed else
+  (loaded_libs := Lib.Name.Set.add n !loaded_libs; Ok lib)
 
 let dir_load ppf name = ignore (load_file false ppf name)
 
