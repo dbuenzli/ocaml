@@ -38,13 +38,22 @@ let expand_position pos len =
     (* New last position *)
     first_nonexpanded_pos := pos + len + 2
 
-
 let prepare ppf =
   Opttoploop.set_paths ();
   try
-    let res =
-      List.for_all (Opttopdirs.load_file ppf) (List.rev !preload_objects)
+    let assume n = ignore (Opttopdirs.assume_library (Lib.Name.to_string n)) in
+    let require_to_string = function
+      | `Lib l -> Lib.Name.to_string l | `File_and_deps a -> a
     in
+    let require r = Opttopdirs.require ppf (require_to_string r) in
+    let load_obj obj = Opttopdirs.load_file ppf obj in
+    let assume_libs = Lib.Name.Set.elements @@ Compenv.get_assume_libs () in
+    let reqs = Compenv.get_requires () in
+    let objs = List.rev (!preload_objects @ !Compenv.first_objfiles) in
+    let () = List.iter assume assume_libs in
+    (* XXX this is not according to RFC we need to respect objs/requires
+       interleaving. Doing that cleanly remains a question at the moment. *)
+    let res = List.for_all require reqs && List.for_all load_obj objs in
     Opttoploop.run_hooks Opttoploop.Startup;
     res
   with x ->

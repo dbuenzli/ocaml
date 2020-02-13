@@ -39,12 +39,19 @@ let expand_position pos len =
 let prepare ppf =
   Toploop.set_paths ();
   try
-    let res =
-      let objects =
-        List.rev (!preload_objects @ !Compenv.first_objfiles)
-      in
-      List.for_all (Topdirs.load_file ppf) objects
+    let assume n = ignore (Topdirs.assume_library (Lib.Name.to_string n)) in
+    let require_to_string = function
+      | `Lib l -> Lib.Name.to_string l | `File_and_deps a -> a
     in
+    let require r = Topdirs.require ppf (require_to_string r) in
+    let load_obj obj = Topdirs.load_file ppf obj in
+    let assume_libs = Lib.Name.Set.elements @@ Compenv.get_assume_libs () in
+    let reqs = Compenv.get_requires () in
+    let objs = List.rev (!preload_objects @ !Compenv.first_objfiles) in
+    let () = List.iter assume assume_libs in
+    (* XXX this is not according to RFC we need to respect objs/requires
+       interleaving. Doing that cleanly remains a question at the moment. *)
+    let res = List.for_all require reqs && List.for_all load_obj objs in
     Toploop.run_hooks Toploop.Startup;
     res
   with x ->
