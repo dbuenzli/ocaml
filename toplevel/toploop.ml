@@ -486,9 +486,11 @@ let refill_lexbuf buffer len =
 
 (* Toplevel initialization. Performed here instead of at the
    beginning of loop() so that user code linked in with ocamlmktop
-   can call directives from Topdirs. *)
+   can call directives from Topdirs. Note that this happens
+   before cli parsing and the load path will be reinitalized at least
+   twice later (see [set_paths], [Topmain.main] or [run_script]). *)
 
-let _ =
+let () =
   if !Sys.interactive then (* PR#6108 *)
     invalid_arg "The ocamltoplevel.cma library from compiler-libs \
                  cannot be loaded inside the OCaml toplevel";
@@ -539,7 +541,12 @@ let load_ocamlinit ppf =
 let set_paths () =
   (* Add whatever -I options have been specified on the command line,
      but keep the directories that user code linked in with ocamlmktop
-     may have added to load_path. *)
+     may have added to load_path. Note that the load path will
+     be reinitialised once more later only with the end-user includes
+     just before entering interactive or script mode via calls to
+     [Compmisc.init_path] (see [Topmain.main] or [use_script]).
+     The `Dll` path however remains with the load path
+     it is given here. *)
   let expand = Misc.expand_directory Config.standard_library in
   let current_load_path = Load_path.get_paths () in
   let load_path = List.concat [
