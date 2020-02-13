@@ -73,6 +73,8 @@ let _ = Hashtbl.add directive_table "cd" (Directive_string dir_cd)
 
 (* Load in-core a .cmxs file *)
 
+let loaded_files = ref Stdlib.String.Set.empty
+
 let load_file ppf name0 =
   let name =
     try Some (Load_path.find name0)
@@ -90,7 +92,7 @@ let load_file ppf name0 =
       else
         name,false
     in
-    let success =
+    let loaded =
       (* The Dynlink interface does not allow us to distinguish between
           a Dynlink.Error exceptions raised in the loaded modules
           or a genuine error during dynlink... *)
@@ -105,8 +107,10 @@ let load_file ppf name0 =
         false
     in
     if tmp then (try Sys.remove fn with Sys_error _ -> ());
-    success
+    if loaded then loaded_files := Stdlib.String.Set.add name !loaded_files;
+    loaded
 
+let loaded_files () = !loaded_files
 
 let dir_load ppf name = ignore (load_file ppf name)
 

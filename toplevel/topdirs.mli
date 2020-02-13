@@ -34,3 +34,7 @@ type 'a printer_type_old = 'a -> unit
 
 (* For topmain.ml. Maybe shouldn't be there *)
 val load_file : formatter -> string -> bool
+
+val loaded_files : unit -> Set.Make(String).t
+(** [loaded_files ()] is the set of object and archive files that were
+    loaded so far. *)

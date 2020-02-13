@@ -160,17 +160,18 @@ let load_compunit ic filename ppf compunit =
     raise Load_failed
   end
 
-let rec load_file recursive ppf name =
-  let filename =
-    try Some (Load_path.find name) with Not_found -> None
-  in
-  match filename with
-  | None -> fprintf ppf "Cannot find file %s.@." name; false
-  | Some filename ->
-      let ic = open_in_bin filename in
-      Misc.try_finally
-        ~always:(fun () -> close_in ic)
-        (fun () -> really_load_file recursive ppf name filename ic)
+let loaded_files = ref Stdlib.String.Set.empty
+
+let rec load_file recursive ppf name = match Load_path.find name with
+| exception Not_found -> fprintf ppf "Cannot find file %s.@." name; false
+| file ->
+    let ic = open_in_bin file in
+    let loaded =
+      Misc.try_finally ~always:(fun () -> close_in ic)
+        (fun () -> really_load_file recursive ppf name file ic)
+    in
+    (if loaded then loaded_files := Stdlib.String.Set.add file !loaded_files);
+    loaded
 
 and really_load_file recursive ppf name filename ic =
   let buffer = really_input_string ic (String.length Config.cmo_magic_number) in
@@ -236,6 +237,7 @@ let _ = add_directive "load_rec"
     }
 
 let load_file = load_file false
+let loaded_files () = !loaded_files
 
 (* Load commands from a file *)
 
