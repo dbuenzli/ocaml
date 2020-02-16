@@ -1918,6 +1918,7 @@ bytecomp/symtable.cmo : \
     utils/misc.cmi \
     bytecomp/meta.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     bytecomp/dll.cmi \
@@ -1933,6 +1934,7 @@ bytecomp/symtable.cmx : \
     utils/misc.cmx \
     bytecomp/meta.cmx \
     parsing/location.cmx \
+    utils/lib.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     bytecomp/dll.cmx \
@@ -1944,6 +1946,7 @@ bytecomp/symtable.cmx : \
     bytecomp/symtable.cmi
 bytecomp/symtable.cmi : \
     utils/misc.cmi \
+    utils/lib.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     file_formats/cmo_format.cmi
