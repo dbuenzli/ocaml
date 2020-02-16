@@ -66,7 +66,8 @@ module Bytecode = struct
       invalid_arg "The dynlink.cma library cannot be used \
         inside the OCaml toplevel"
     end;
-    default_crcs := Symtable.init_toplevel ();
+    let crcs, _lib_names = Symtable.init_toplevel () in
+    default_crcs := crcs;
     default_global_map := Symtable.current_state ()
 
   let is_native = false

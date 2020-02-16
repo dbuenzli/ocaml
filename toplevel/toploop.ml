@@ -514,7 +514,7 @@ let _ =
     invalid_arg "The ocamltoplevel.cma library from compiler-libs \
                  cannot be loaded inside the OCaml toplevel";
   Sys.interactive := true;
-  let crc_intfs = Symtable.init_toplevel() in
+  let crc_intfs, _lib_names = Symtable.init_toplevel() in
   Compmisc.init_path () ~libs:[];
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
   ()

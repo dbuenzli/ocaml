@@ -318,9 +318,13 @@ let init_toplevel () =
       try
         (Obj.magic (sect.read_struct "CRCS") : (string * Digest.t option) list)
       with Not_found -> [] in
+    let lib_names =
+      try (Obj.magic (sect.read_struct "LIBS") : Lib.Name.Set.t)
+      with Not_found -> Lib.Name.Set.empty
+    in
     (* Done *)
     sect.close_reader();
-    crcintfs
+    crcintfs, lib_names
   with Bytesections.Bad_magic_number | Not_found | Failure _ ->
     fatal_error "Toplevel bytecode executable is corrupted"
 
