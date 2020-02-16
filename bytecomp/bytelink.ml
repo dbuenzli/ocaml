@@ -49,13 +49,13 @@ let read_cmo_info file_name ic =
   close_in ic;
   `Cmo (file_name, compunit)
 
-let rec read_cma_info file_name ic lib_resolver cma_seen rev_infos =
+let rec read_cma_info file_name ic lib_resolver lib_seen cma_seen rev_infos =
   let pos_toc = input_binary_int ic in    (* Go to table of contents *)
   seek_in ic pos_toc;
   let toc = (input_value ic : library) in
   close_in ic;
   let cma_seen = Stdlib.String.Set.add file_name cma_seen in
-  let cma_seen, rev_infos =
+  let lib_seen, cma_seen, rev_infos =
     (* Before adding the info for the cma to [rev_infos] we add the
        info for the cmas of the libraries it requires; for those not
        already seen and recursively and if [-noautoliblink] is not
@@ -65,7 +65,7 @@ let rec read_cma_info file_name ic lib_resolver cma_seen rev_infos =
        recursive call to [read_objs_infos] below makes the procedure
        not tailrec but stack size is bound by depth of the library
        dependency DAG. *)
-    if !Clflags.no_auto_lib_link then cma_seen, rev_infos else
+    if !Clflags.no_auto_lib_link then lib_seen, cma_seen, rev_infos else
     let add_lib_require_cma acc n =
       let err cma e = raise (Error (Lib_resolution_error (cma, e))) in
       match Lib.Resolver.get lib_resolver n with
@@ -77,31 +77,33 @@ let rec read_cma_info file_name ic lib_resolver cma_seen rev_infos =
           | Ok cma -> cma :: acc
     in
     let rev_cmas = List.fold_left add_lib_require_cma [] toc.lib_requires in
-    read_objs_infos lib_resolver cma_seen rev_infos (List.rev rev_cmas)
+    let lib_seen = List.fold_right Lib.Name.Set.add toc.lib_requires lib_seen in
+    read_objs_infos lib_resolver lib_seen cma_seen rev_infos (List.rev rev_cmas)
   in
-  cma_seen, `Cma (file_name, toc) :: rev_infos
+  lib_seen, cma_seen, `Cma (file_name, toc) :: rev_infos
 
-and read_objs_infos lib_resolver cma_seen rev_infos = function
-  | [] -> cma_seen, rev_infos
+and read_objs_infos lib_resolver lib_seen cma_seen rev_infos = function
+  | [] -> lib_seen, cma_seen, rev_infos
   | obj_name :: obj_names ->
       let file_name =
         try Load_path.find obj_name
         with Not_found -> raise (Error (File_not_found obj_name))
       in
       if Stdlib.String.Set.mem file_name cma_seen
-      then read_objs_infos lib_resolver cma_seen rev_infos obj_names else
+      then read_objs_infos lib_resolver lib_seen cma_seen rev_infos obj_names
+      else
       let ic = open_in_bin file_name in
       try
         let magic = really_input_string ic (String.length cmo_magic_number) in
         if magic = cmo_magic_number then begin
           let rev_infos = read_cmo_info file_name ic :: rev_infos in
-          read_objs_infos lib_resolver cma_seen rev_infos obj_names
+          read_objs_infos lib_resolver lib_seen cma_seen rev_infos obj_names
         end
         else if magic = cma_magic_number then begin
-          let cma_seen, rev_infos =
-            read_cma_info file_name ic lib_resolver cma_seen rev_infos
+          let lib_seen, cma_seen, rev_infos =
+            read_cma_info file_name ic lib_resolver lib_seen cma_seen rev_infos
           in
-          read_objs_infos lib_resolver cma_seen rev_infos obj_names
+          read_objs_infos lib_resolver lib_seen cma_seen rev_infos obj_names
         end else
           raise (Error (Not_an_object_file file_name))
       with
@@ -349,7 +351,7 @@ let make_absolute file =
 
 (* Create a bytecode executable file *)
 
-let link_bytecode ?final_name tolink exec_name standalone =
+let link_bytecode ?final_name tolink ~lib_names exec_name standalone =
   let final_name = Option.value final_name ~default:exec_name in
   (* Avoid the case where the specified exec output file is the same as
      one of the objects to be linked *)
@@ -441,6 +443,13 @@ let link_bytecode ?final_name tolink exec_name standalone =
        (* CRCs for modules *)
        output_value outchan (extract_crc_interfaces());
        Bytesections.record outchan "CRCS";
+       (* Names of libraries fully linked *)
+       begin match lib_names with
+       | None -> ()
+       | Some libs ->
+           output_value outchan libs;
+           Bytesections.record outchan "LIBS";
+       end;
        (* Debug info *)
        if !Clflags.debug then begin
          output_debug_info outchan;
@@ -508,7 +517,7 @@ let output_cds_file outfile =
 
 (* Output a bytecode executable as a C file *)
 
-let link_bytecode_as_c tolink outfile with_main =
+let link_bytecode_as_c tolink ~lib_names outfile with_main =
   let outchan = open_out outfile in
   Misc.try_finally
     ~always:(fun () -> close_out outchan)
@@ -541,9 +550,13 @@ let link_bytecode_as_c tolink outfile with_main =
        output_string outchan "\n};\n\n";
        (* The sections *)
        let sections =
-         [ "SYMB", Symtable.data_global_map();
-           "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
+         ("SYMB", Symtable.data_global_map()) ::
+         ("PRIM", Obj.repr(Symtable.data_primitive_names())) ::
+         ("CRCS", Obj.repr(extract_crc_interfaces())) ::
+         (match lib_names with
+          | None -> []
+          | Some libs -> ("LIBS", Obj.repr libs) :: [])
+       in
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);
@@ -651,12 +664,14 @@ let link lib_resolver objfiles output_name =
     if !Clflags.nopervasives then objfiles
     else if !Clflags.output_c_object then "stdlib.cma" :: objfiles
     else "stdlib.cma" :: (objfiles @ ["std_exit.cmo"]) in
+  let lib_seen = Lib.Name.Set.of_list (!Clflags.requires_rev) in
   (* [read_objs_infos] processes objfiles from left-to-right and returns
      info in reverse order. This means that the left fold with link_obj
      for link effects processes objfiles from right-to-left. *)
-  let _, rev_obj_infos =
-    read_objs_infos lib_resolver Stdlib.String.Set.empty [] objfiles
+  let lib_seen, _, rev_obj_infos =
+    read_objs_infos lib_resolver lib_seen Stdlib.String.Set.empty [] objfiles
   in
+  let lib_names = if !Clflags.link_everything then Some lib_seen else None in
   let tolink = List.fold_left link_obj [] rev_obj_infos in
   let missing_modules =
     Ident.Set.filter (fun id -> not (Ident.is_predef id)) !missing_globals
@@ -671,7 +686,7 @@ let link lib_resolver objfiles output_name =
                                                    (* put user's opts first *)
   Clflags.dllibs := !lib_dllibs @ !Clflags.dllibs; (* put user's DLLs first *)
   if not !Clflags.custom_runtime then
-    link_bytecode tolink output_name true
+    link_bytecode tolink ~lib_names output_name true
   else if not !Clflags.output_c_object then begin
     let bytecode_name = Filename.temp_file "camlcode" "" in
     let prim_name =
@@ -684,7 +699,8 @@ let link lib_resolver objfiles output_name =
           remove_file bytecode_name;
           if not !Clflags.keep_camlprimc_file then remove_file prim_name)
       (fun () ->
-         link_bytecode ~final_name:output_name tolink bytecode_name false;
+         link_bytecode
+           ~final_name:output_name tolink ~lib_names bytecode_name false;
          let poc = open_out prim_name in
          (* note: builds will not be reproducible if the C code contains macros
             such as __FILE__. *)
@@ -734,7 +750,8 @@ let link lib_resolver objfiles output_name =
     Misc.try_finally
       ~always:(fun () -> List.iter remove_file !temps)
       (fun () ->
-         link_bytecode_as_c tolink c_file !Clflags.output_complete_executable;
+         link_bytecode_as_c
+           tolink ~lib_names c_file !Clflags.output_complete_executable;
          if !Clflags.output_complete_executable then begin
            temps := c_file :: !temps;
            if not (build_custom_runtime c_file output_name) then

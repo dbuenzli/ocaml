@@ -239,6 +239,11 @@ let dump_byte ic =
                  "Additional DLL paths"
                  print_line
                  (input_stringlist ic len)
+           | "LIBS" ->
+               let lib_names = (input_value ic : Lib.Name.Set.t) in
+               let lib_names = Lib.Name.Set.elements lib_names in
+               let lib_names = List.map Lib.Name.to_string lib_names in
+               p_list "Imported libraries" print_line lib_names
            | "PRIM" ->
                p_list
                  "Primitives used"
