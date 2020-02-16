@@ -275,6 +275,20 @@ let assume_lib_loaded n = match Lib.Name.of_string n with
 
 let loaded_libs () = Lib.Name.Set.to_string_set !loaded_libs
 
+(* Require libraries *)
+
+let dir_require ppf name = match Lib.Name.of_string name with
+  | Error e -> fprintf ppf "@[%s@]@." e
+  | Ok n ->
+      match load_lib ppf ~from_file:None n with
+      | None -> ()
+      | Some lib -> (* add include *) dir_directory (Lib.dir lib)
+      | exception Load_failed -> ()
+
+let () = add_directive "require"
+    (Directive_string (dir_require std_out))
+    { section = section_run; doc = "Load a library and its dependencies." }
+
 (* Load commands from a file *)
 
 let dir_use ppf name = ignore(Toploop.use_file ppf name)

@@ -6074,10 +6074,12 @@ toplevel/opttopdirs.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
+    driver/compmisc.cmi \
     utils/clflags.cmi \
     asmcomp/asmlink.cmi \
     toplevel/opttopdirs.cmi
@@ -6089,10 +6091,12 @@ toplevel/opttopdirs.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
+    driver/compmisc.cmx \
     utils/clflags.cmx \
     asmcomp/asmlink.cmx \
     toplevel/opttopdirs.cmi

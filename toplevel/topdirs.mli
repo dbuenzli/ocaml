@@ -22,6 +22,7 @@ val dir_directory : string -> unit
 val dir_remove_directory : string -> unit
 val dir_cd : string -> unit
 val dir_load : formatter -> string -> unit
+val dir_require : formatter -> string -> unit
 val dir_use : formatter -> string -> unit
 val dir_install_printer : formatter -> Longident.t -> unit
 val dir_remove_printer : formatter -> Longident.t -> unit
@@ -34,7 +35,6 @@ type 'a printer_type_old = 'a -> unit
 
 (* For topmain.ml. Maybe shouldn't be there *)
 val load_file : formatter -> string -> bool
-
 val loaded_files : unit -> Set.Make(String).t
 (** [loaded_files ()] is the set of object and archive files that were
     loaded so far. *)
