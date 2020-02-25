@@ -22,9 +22,6 @@
 
 open! Dynlink_compilerlibs
 
-module DC = Dynlink_common
-module DT = Dynlink_types
-
 type global_map = {
   name : string;
   crc_intf : Digest.t option;
@@ -69,7 +66,7 @@ module Native = struct
         let implementation =
           match crc_impl with
           | None -> None
-          | Some _ as crco -> Some (crco, DT.Check_inited !rank)
+          | Some _ as crco -> Some (crco, Dynlink_types.Check_inited !rank)
         in
         f acc ~comp_unit:name ~interface:crc_intf
             ~implementation ~defined_symbols:syms)
@@ -84,17 +81,17 @@ module Native = struct
         try ndl_run handle cu
         with exn ->
           Printexc.raise_with_backtrace
-            (DT.Error (Library's_module_initializers_failed exn))
+            (Dynlink_types.Error (Library's_module_initializers_failed exn))
             (Printexc.get_raw_backtrace ()))
       (Unit_header.defined_symbols unit_header)
 
   let load ~filename ~priv =
     let handle, header =
       try ndl_open filename (not priv)
-      with exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
+      with exn -> raise (Dynlink_types.Error (Cannot_open_dynamic_library exn))
     in
     if header.dynu_magic <> Config.cmxs_magic_number then begin
-      raise (DT.Error (Not_a_bytecode_file filename))
+      raise (Dynlink_types.Error (Not_a_bytecode_file filename))
     end;
     handle, header.dynu_units
 
@@ -106,14 +103,14 @@ module Native = struct
   let finish _handle = ()
 end
 
-include DC.Make (Native)
+include Dynlink_common.Make (Native)
 
-type linking_error = DT.linking_error =
+type linking_error = Dynlink_types.linking_error =
   | Undefined_global of string
   | Unavailable_primitive of string
   | Uninitialized_global of string
 
-type error = DT.error =
+type error = Dynlink_types.error =
   | Not_a_bytecode_file of string
   | Inconsistent_import of string
   | Unavailable_unit of string
@@ -126,5 +123,5 @@ type error = DT.error =
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
 
-exception Error = DT.Error
-let error_message = DT.error_message
+exception Error = Dynlink_types.Error
+let error_message = Dynlink_types.error_message
