@@ -60,7 +60,7 @@ module type S = sig
   val load
      : filename:Dynlink_types.filename
     -> priv:bool
-    -> handle * (Unit_header.t list)
+    -> handle * (Unit_header.t list) * Dynlink_types.lib_name list
 
   val run_shared_startup : handle -> unit
   val run : handle -> unit_header:Unit_header.t -> priv:bool -> unit
