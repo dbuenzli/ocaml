@@ -32,6 +32,7 @@ type linking_error =
   | Uninitialized_global of string
 
 type error =
+  | Library_resolution_error of string (** error message *)
   | Not_a_bytecode_file of string
   | Inconsistent_import of string
   | Unavailable_unit of string

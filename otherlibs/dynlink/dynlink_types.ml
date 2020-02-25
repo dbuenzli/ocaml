@@ -33,6 +33,7 @@ type linking_error =
   | Uninitialized_global of string
 
 type error =
+  | Library_resolution_error of string (** error message *)
   | Not_a_bytecode_file of string
   | Inconsistent_import of string
   | Unavailable_unit of string
@@ -48,6 +49,7 @@ type error =
 exception Error of error
 
 let error_message = function
+  | Library_resolution_error error -> error
   | Not_a_bytecode_file name ->
     name ^ " is not an object file"
   | Inconsistent_import name ->
@@ -85,6 +87,8 @@ let () =
   Printexc.register_printer (function
     | Error err ->
       let msg = match err with
+      | Library_resolution_error err ->
+        Printf.sprintf "Library_resolution_error %S" err
       | Not_a_bytecode_file s -> Printf.sprintf "Not_a_bytecode_file %S" s
       | Inconsistent_import s -> Printf.sprintf "Inconsistent_import %S" s
       | Unavailable_unit s -> Printf.sprintf "Unavailable_unit %S" s

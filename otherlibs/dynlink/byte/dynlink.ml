@@ -190,6 +190,7 @@ type linking_error = Dynlink_types.linking_error =
   | Uninitialized_global of string
 
 type error = Dynlink_types.error =
+  | Library_resolution_error of string (** error message *)
   | Not_a_bytecode_file of string
   | Inconsistent_import of string
   | Unavailable_unit of string
