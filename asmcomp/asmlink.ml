@@ -41,8 +41,8 @@ type obj_info =
   | Unit of string * unit_infos * Digest.t
   | Library of string * library_infos
 
-let rec read_objs_infos ~lib_resolver cmxa_seen rev_infos = function
-  | [] -> cmxa_seen, rev_infos
+let rec read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos = function
+  | [] -> lib_seen, cmxa_seen, rev_infos
   | obj_name :: obj_names ->
       let file_name =
         try Load_path.find obj_name
@@ -52,63 +52,65 @@ let rec read_objs_infos ~lib_resolver cmxa_seen rev_infos = function
         begin
           let (info, crc) = Compilenv.read_unit_info file_name in
           let rev_infos = Unit (file_name, info, crc) :: rev_infos in
-          read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
+          read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos obj_names
         end
       else if Filename.check_suffix file_name ".cmxa" then
         match lib_resolver with
-        | None -> (* This is for [Asmlink.link_share], the lib_requires of cmxa
-                     files are not resolved. Instead they are added to the final
-                     cmxs metadata via add_ccobjs during [link_obj], unless
-                     [-noautoliblink] is specified. Note that this execution
-                     path does not care about or update [cmxa_seen]. *)
+        (* This case is for [Asmlink.link_share], the lib_requires of cmxa
+           files are not resolved. Instead they are added to the final
+           cmxs metadata via add_ccobjs during [link_obj], unless
+           [-noautoliblink] is specified. Note that this execution
+           path does not care about or update [lib_seen] and [cmxa_seen]. *)
+        | None ->
             let infos =
               try Compilenv.read_library_info file_name
               with Compilenv.Error (Not_a_unit_info _) ->
                 raise (Error (Not_an_object_file file_name))
             in
             let rev_infos = Library (file_name, infos) :: rev_infos in
-            read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
-        | Some r -> (* This is for [Asmlink.link]. *)
-            if Stdlib.String.Set.mem file_name cmxa_seen
-            then read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
-            else begin
-              let infos =
-                try Compilenv.read_library_info file_name
-                with Compilenv.Error (Not_a_unit_info _) ->
-                  raise (Error (Not_an_object_file file_name))
-              in
-              let cmxa_seen = Stdlib.String.Set.add file_name cmxa_seen in
-              let cmxa_seen, rev_infos =
-                (* Before adding the info for the cmxa to [rev_infos] we
-                   add the info for the cmxas of the libraries it requires;
-                   for those not already seen and recursively and if
-                   [-noautoliblink] is not specified. Implicitely
-                   this makes a stable topological sort of the cmxas and their
-                   required libraries by depth first exploration of the library
-                   dependency DAG. The recursive call to [read_obj_infos] below
-                   makes the procedure not tailrec but stack size is bound by
-                   depth of the library dependency DAG. *)
-                if !Clflags.no_auto_lib_link then cmxa_seen, rev_infos else
-                let add_lib_require_cmxa acc n =
-                  let err cmxa e =
-                    raise (Error (Lib_resolution_error (cmxa, e)))
-                  in
-                  match Lib.Resolver.get r n with
-                  | Error e -> err file_name e
-                  | Ok l ->
-                      match Lib.cmxa l with
-                      | Error e -> err file_name e
-                      | Ok cmxa when Stdlib.String.Set.mem cmxa cmxa_seen -> acc
-                      | Ok cmxa -> cmxa :: acc
+            read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos obj_names
+        (* These cases are for [Asmlink.link]. *)
+        | Some _ when Stdlib.String.Set.mem file_name cmxa_seen ->
+            read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos obj_names
+        | Some r ->
+            let infos =
+              try Compilenv.read_library_info file_name
+              with Compilenv.Error (Not_a_unit_info _) ->
+                raise (Error (Not_an_object_file file_name))
+            in
+            let cmxa_seen = Stdlib.String.Set.add file_name cmxa_seen in
+            let lib_seen, cmxa_seen, rev_infos =
+              (* Before adding the info for the cmxa to [rev_infos] we
+                 add the info for the cmxas of the libraries it requires;
+                 for those not already seen and recursively and if
+                 [-noautoliblink] is not specified. Implicitely
+                 this makes a stable topological sort of the cmxas and their
+                 required libraries by depth first exploration of the library
+                 dependency DAG. The recursive call to [read_obj_infos] below
+                 makes the procedure not tailrec but stack size is bound by
+                 depth of the library dependency DAG. *)
+              if !Clflags.no_auto_lib_link
+              then lib_seen, cmxa_seen, rev_infos else
+              let add_lib_require_cmxa acc n =
+                let err cmxa e =
+                  raise (Error (Lib_resolution_error (cmxa, e)))
                 in
-                let reqs = infos.lib_requires in
-                let rev_cmxas = List.fold_left add_lib_require_cmxa [] reqs in
-                let cmxas = List.rev rev_cmxas in
-                read_objs_infos ~lib_resolver cmxa_seen rev_infos cmxas
+                match Lib.Resolver.get r n with
+                | Error e -> err file_name e
+                | Ok l ->
+                    match Lib.cmxa l with
+                    | Error e -> err file_name e
+                    | Ok cmxa when Stdlib.String.Set.mem cmxa cmxa_seen -> acc
+                    | Ok cmxa -> cmxa :: acc
               in
-              let rev_infos = Library (file_name, infos) :: rev_infos in
-              read_objs_infos ~lib_resolver cmxa_seen rev_infos obj_names
-            end
+              let reqs = infos.lib_requires in
+              let lib_seen = List.fold_right Lib.Name.Set.add reqs lib_seen in
+              let rev_cmxas = List.fold_left add_lib_require_cmxa [] reqs in
+              let cmxas = List.rev rev_cmxas in
+              read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos cmxas
+            in
+            let rev_infos = Library (file_name, infos) :: rev_infos in
+            read_objs_infos ~lib_resolver lib_seen cmxa_seen rev_infos obj_names
       else
         raise (Error (Not_an_object_file file_name))
 
@@ -282,7 +284,7 @@ let make_globals_map units_list ~crc_interfaces =
       (name, intf, None, []) :: acc)
     crc_interfaces defined
 
-let make_startup_file ~ppf_dump units_list ~crc_interfaces =
+let make_startup_file ~ppf_dump units_list ~crc_interfaces ~lib_names  =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup";
@@ -299,6 +301,7 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units_list ~crc_interfaces in
   compile_phrase (Cmm_helpers.globals_map globals_map);
+  compile_phrase (Cmm_helpers.imported_libs lib_names);
   compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
   if !Clflags.function_sections then
     compile_phrase
@@ -340,8 +343,10 @@ let link_shared ~ppf_dump ~requires objfiles output_name =
    (* [read_objs_infos] processes objfiles from left-to-right and returns
       info in reverse order. This means that the left fold with link_obj
       for link effects processes objfiles from right-to-left. *)
-    let _, rev_obj_infos =
-      read_objs_infos ~lib_resolver:None Stdlib.String.Set.empty [] objfiles
+    let _, _, rev_obj_infos =
+      let lib_resolver = None and lib_seen = Lib.Name.Set.empty
+      and cmxa_seen = Stdlib.String.Set.empty in
+      read_objs_infos ~lib_resolver lib_seen cmxa_seen [] objfiles
     in
     let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     List.iter
@@ -405,13 +410,15 @@ let link ~ppf_dump lib_resolver objfiles output_name =
       if !Clflags.nopervasives then objfiles
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
+    let lib_seen = Lib.Name.Set.of_list (!Clflags.requires_rev) in
    (* [read_objs_infos] processes objfiles from left-to-right and returns
       info in reverse order. This means that the left fold with link_obj
       for link effects processes objfiles from right-to-left. *)
-    let _, rev_obj_infos =
+    let lib_seen, _, rev_obj_infos =
       let lib_resolver = Some lib_resolver in
-      read_objs_infos ~lib_resolver Stdlib.String.Set.empty [] objfiles
+      read_objs_infos ~lib_resolver lib_seen Stdlib.String.Set.empty [] objfiles
     in
+    let lib_names = if !Clflags.link_everything then Some lib_seen else None in
     let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
@@ -432,7 +439,8 @@ let link ~ppf_dump lib_resolver objfiles output_name =
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
     Asmgen.compile_unit
       startup !Clflags.keep_startup_file startup_obj
-      (fun () -> make_startup_file ~ppf_dump units_tolink ~crc_interfaces);
+      (fun () ->
+         make_startup_file ~ppf_dump units_tolink ~crc_interfaces ~lib_names);
     Misc.try_finally
       (fun () ->
          call_linker (List.rev_map obj_info_file_name rev_obj_infos)

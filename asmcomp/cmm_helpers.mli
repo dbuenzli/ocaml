@@ -587,6 +587,10 @@ val reference_symbols: string list -> phrase
 val globals_map:
   (string * Digest.t option * Digest.t option * string list) list -> phrase
 
+(** Generate the caml_imported_libs structure, as a marshalled string
+    constant *)
+val imported_libs: Lib.Name.Set.t -> phrase
+
 (** Generate the caml_frametable table, referencing the frametables
     from the given compilation units *)
 val frame_table: string list -> phrase
