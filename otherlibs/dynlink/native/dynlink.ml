@@ -36,6 +36,8 @@ module Native = struct
     = "caml_natdynlink_open"
   external ndl_run : handle -> string -> unit = "caml_natdynlink_run"
   external ndl_getmap : unit -> global_map list = "caml_natdynlink_getmap"
+  external ndl_imported_libs : unit -> Lib.Name.Set.t =
+    "caml_natdynlink_imported_libs"
   external ndl_globals_inited : unit -> int = "caml_natdynlink_globals_inited"
   external ndl_loadsym : string -> Obj.t = "caml_natdynlink_loadsym"
 
@@ -72,6 +74,10 @@ module Native = struct
             ~implementation ~defined_symbols:syms)
       init
       (ndl_getmap ())
+
+  let fold_initial_libs acc f =
+    let add_lib lib acc = f acc (Lib.Name.to_string lib) in
+    Lib.Name.Set.fold add_lib (ndl_imported_libs ()) acc
 
   let run_shared_startup handle =
     ndl_run handle "_shared_startup"

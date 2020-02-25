@@ -25,6 +25,7 @@ type implem_state =
   | Check_inited of int
 
 type filename = string
+type lib_name = string
 
 type linking_error =
   | Undefined_global of string

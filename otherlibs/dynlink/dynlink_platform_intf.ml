@@ -55,6 +55,8 @@ module type S = sig
       -> 'a)
     -> 'a
 
+  val fold_initial_libs : 'a -> ('a -> Dynlink_types.lib_name -> 'a) -> 'a
+
   val load
      : filename:Dynlink_types.filename
     -> priv:bool
