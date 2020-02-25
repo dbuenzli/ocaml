@@ -375,7 +375,7 @@ module Make (P : Dynlink_platform_intf.S) = struct
     let filename = dll_filename filename in
     match P.load ~filename ~priv with
     | exception exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
-    | handle, units ->
+    | handle, units, _lib_requires ->
       try
         global_state := check filename units !global_state ~priv;
         P.run_shared_startup handle;

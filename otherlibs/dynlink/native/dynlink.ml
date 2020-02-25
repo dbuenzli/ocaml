@@ -118,7 +118,8 @@ module Native = struct
     if header.dynu_magic <> Config.cmxs_magic_number then begin
       raise (Dynlink_types.Error (Not_a_bytecode_file filename))
     end;
-    handle, header.dynu_units
+    let lib_requires = List.map Lib.Name.to_string header.dynu_requires in
+    handle, header.dynu_units, lib_requires
 
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
     match ndl_loadsym bytecode_or_asm_symbol with

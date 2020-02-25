@@ -163,14 +163,15 @@ module Bytecode = struct
         let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
         seek_in ic compunit_pos;
         let cu = (input_value ic : Cmo_format.compilation_unit) in
-        handle, [cu]
+        handle, [cu], []
       end else
       if buffer = Config.cma_magic_number then begin
         let toc_pos = input_binary_int ic in  (* Go to table of contents *)
         seek_in ic toc_pos;
         let lib = (input_value ic : Cmo_format.library) in
         let handle = ic, file_name, file_digest, lib.lib_dllibs in
-        handle, lib.lib_units
+        let lib_requires = List.map Lib.Name.to_string lib.lib_requires in
+        handle, lib.lib_units, lib_requires
       end else begin
         raise (Dynlink_types.Error (Not_a_bytecode_file file_name))
       end
