@@ -20,9 +20,6 @@
 
 open! Dynlink_compilerlibs
 
-module DC = Dynlink_common
-module DT = Dynlink_types
-
 module Bytecode = struct
   type filename = string
 
@@ -83,7 +80,7 @@ module Bytecode = struct
           Symtable.is_defined_in_global_map !default_global_map id
         in
         let implementation =
-          if defined then Some (None, DT.Loaded)
+          if defined then Some (None, Dynlink_types.Loaded)
           else None
         in
         let defined_symbols =
@@ -112,14 +109,14 @@ module Bytecode = struct
       Symtable.check_global_initialized compunit.cu_reloc;
       Symtable.update_global_table ()
     with Symtable.Error error ->
-      let new_error : DT.linking_error =
+      let new_error : Dynlink_types.linking_error =
         match error with
         | Symtable.Undefined_global s -> Undefined_global s
         | Symtable.Unavailable_primitive s -> Unavailable_primitive s
         | Symtable.Uninitialized_global s -> Uninitialized_global s
         | Symtable.Wrong_vm _ -> assert false
       in
-      raise (DT.Error (Linking_error (file_name, new_error)))
+      raise (Dynlink_types.Error (Linking_error (file_name, new_error)))
     end;
     (* PR#5215: identify this code fragment by
        digest of file contents + unit name.
@@ -137,7 +134,7 @@ module Bytecode = struct
     try ignore ((clos ()) : Obj.t)
     with exn ->
       Printexc.raise_with_backtrace
-        (DT.Error (Library's_module_initializers_failed exn))
+        (Dynlink_types.Error (Library's_module_initializers_failed exn))
         (Printexc.get_raw_backtrace ())
 
   let load ~filename:file_name ~priv:_ =
@@ -147,7 +144,8 @@ module Bytecode = struct
     try
       let buffer =
         try really_input_string ic (String.length Config.cmo_magic_number)
-        with End_of_file -> raise (DT.Error (Not_a_bytecode_file file_name))
+        with End_of_file ->
+          raise (Dynlink_types.Error (Not_a_bytecode_file file_name))
       in
       let handle = ic, file_name, file_digest in
       if buffer = Config.cmo_magic_number then begin
@@ -164,11 +162,11 @@ module Bytecode = struct
           Dll.open_dlls Dll.For_execution
             (List.map Dll.extract_dll_name lib.lib_dllibs)
         with exn ->
-          raise (DT.Error (Cannot_open_dynamic_library exn))
+          raise (Dynlink_types.Error (Cannot_open_dynamic_library exn))
         end;
         handle, lib.lib_units
       end else begin
-        raise (DT.Error (Not_a_bytecode_file file_name))
+        raise (Dynlink_types.Error (Not_a_bytecode_file file_name))
       end
     with exc ->
       close_in ic;
@@ -184,14 +182,14 @@ module Bytecode = struct
     close_in ic
 end
 
-include DC.Make (Bytecode)
+include Dynlink_common.Make (Bytecode)
 
-type linking_error = DT.linking_error =
+type linking_error = Dynlink_types.linking_error =
   | Undefined_global of string
   | Unavailable_primitive of string
   | Uninitialized_global of string
 
-type error = DT.error =
+type error = Dynlink_types.error =
   | Not_a_bytecode_file of string
   | Inconsistent_import of string
   | Unavailable_unit of string
@@ -204,5 +202,5 @@ type error = DT.error =
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
 
-exception Error = DT.Error
-let error_message = DT.error_message
+exception Error = Dynlink_types.Error
+let error_message = Dynlink_types.error_message
