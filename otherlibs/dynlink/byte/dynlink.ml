@@ -56,6 +56,7 @@ module Bytecode = struct
   type handle = Stdlib.in_channel * filename * Digest.t
 
   let default_crcs = ref []
+  let default_libs = ref Lib.Name.Set.empty
   let default_global_map = ref Symtable.empty_global_map
 
   let init () =
@@ -63,8 +64,9 @@ module Bytecode = struct
       invalid_arg "The dynlink.cma library cannot be used \
         inside the OCaml toplevel"
     end;
-    let crcs, _lib_names = Symtable.init_toplevel () in
+    let crcs, lib_names = Symtable.init_toplevel () in
     default_crcs := crcs;
+    default_libs := lib_names;
     default_global_map := Symtable.current_state ()
 
   let is_native = false
@@ -90,6 +92,10 @@ module Bytecode = struct
         f acc ~comp_unit ~interface ~implementation ~defined_symbols)
       init
       !default_crcs
+
+  let fold_initial_libs acc f =
+    let add_lib lib acc = f acc (Lib.Name.to_string lib) in
+    Lib.Name.Set.fold add_lib !default_libs acc
 
   let run_shared_startup _ = ()
 
