@@ -31,5 +31,8 @@ module Make (_ : Dynlink_platform_intf.S) : sig
   val main_program_units : unit -> string list
   val public_dynamically_loaded_units : unit -> string list
   val all_units : unit -> string list
+  val main_program_libs : unit -> string list
+  val public_dynamically_loaded_libs : unit -> string list
+  val all_libs : unit -> string list
   val allow_unsafe_modules : bool -> unit
 end

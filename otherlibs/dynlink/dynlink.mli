@@ -112,6 +112,19 @@ val all_units : unit -> string list
     with those that have been dynamically loaded via [loadfile] (and not via
     [loadfile_private]). *)
 
+val main_program_libs : unit -> string list
+(** [main_program_libs ()] is the list of library names statically linked
+    in the program. *)
+
+val public_dynamically_loaded_libs : unit -> string list
+(** [public_dynamically_loaded_libs ()] is the list of library names
+    that were dynamically loaded as a side effect of {!loadfile},
+    {!loadfile_private} or {!loadlib}. *)
+
+val all_libs : unit -> string list
+(** [all_libs ()] is the union of {!main_program_libs} and
+    {!public_dynamically_loaded_libs}. *)
+
 val allow_unsafe_modules : bool -> unit
 (** Govern whether unsafe object files are allowed to be
     dynamically linked. A compilation unit is 'unsafe' if it contains

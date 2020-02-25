@@ -60,6 +60,12 @@ module Make (P : Dynlink_platform_intf.S) = struct
       public_dynamically_loaded_units : String.Set.t;
       (* All units that have been dynamically linked, not including those that
          were privately loaded. *)
+      main_program_libs : String.Set.t;
+      (* OCaml libraries statically linked in the main program. *)
+      public_dynamically_loaded_libs : String.Set.t;
+      (* All libraries that were dynamically loaded either by resolving
+         the libraries required by a dynamically loaded archive or
+         explicitely via load_lib. *)
     }
 
     let invariant t =
@@ -78,6 +84,8 @@ module Make (P : Dynlink_platform_intf.S) = struct
       allowed_units = String.Set.empty;
       main_program_units = String.Set.empty;
       public_dynamically_loaded_units = String.Set.empty;
+      main_program_libs = String.Set.empty;
+      public_dynamically_loaded_libs = String.Set.empty;
     }
   end
 
@@ -134,6 +142,10 @@ module Make (P : Dynlink_platform_intf.S) = struct
           ifaces, implems, defined_symbols)
     in
     let main_program_units = String.Map.keys implems in
+    let main_program_libs =
+      let add acc lib = String.Set.add lib acc in
+      P.fold_initial_libs String.Set.empty add
+    in
     let state : State.t =
       { ifaces;
         implems;
@@ -141,6 +153,8 @@ module Make (P : Dynlink_platform_intf.S) = struct
         allowed_units = main_program_units;
         main_program_units;
         public_dynamically_loaded_units = String.Set.empty;
+        main_program_libs;
+        public_dynamically_loaded_libs = String.Set.empty;
       }
     in
     global_state := state
@@ -325,6 +339,17 @@ module Make (P : Dynlink_platform_intf.S) = struct
     String.Set.elements (String.Set.union
       (!global_state).main_program_units
       (!global_state).public_dynamically_loaded_units)
+
+  let main_program_libs () =
+    String.Set.elements (!global_state).main_program_libs
+
+  let public_dynamically_loaded_libs () =
+    String.Set.elements (!global_state).public_dynamically_loaded_libs
+
+  let all_libs () =
+    let main_libs = (!global_state).main_program_libs in
+    let dyn_libs = (!global_state).public_dynamically_loaded_libs in
+    String.Set.elements (String.Set.union main_libs dyn_libs)
 
   let dll_filename fname =
     if Filename.is_implicit fname then Filename.concat (Sys.getcwd ()) fname
