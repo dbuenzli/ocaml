@@ -341,27 +341,50 @@ module Make (P : Dynlink_platform_intf.S) = struct
       (!global_state).public_dynamically_loaded_units)
 
   let main_program_libs () =
+    init ();
     String.Set.elements (!global_state).main_program_libs
 
   let public_dynamically_loaded_libs () =
+    init ();
     String.Set.elements (!global_state).public_dynamically_loaded_libs
 
   let all_libs () =
+    init ();
     let main_libs = (!global_state).main_program_libs in
     let dyn_libs = (!global_state).public_dynamically_loaded_libs in
     String.Set.elements (String.Set.union main_libs dyn_libs)
+
+  let is_lib_loaded lib = (* Warning: be sure init () was called *)
+    String.Set.mem lib (!global_state).main_program_libs ||
+    String.Set.mem lib (!global_state).public_dynamically_loaded_libs
+
+  let set_lib_loaded lib (state : State.t) =
+    let pub = String.Set.add lib state.public_dynamically_loaded_libs in
+    { state with public_dynamically_loaded_libs = pub }
 
   let dll_filename fname =
     if Filename.is_implicit fname then Filename.concat (Sys.getcwd ()) fname
     else fname
 
-  let load priv filename =
+  let rec load lib_resolver ~priv filename =
     init ();
     let filename = dll_filename filename in
     match P.load ~filename ~priv with
     | exception exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
-    | handle, units, _lib_requires ->
+    | handle, units, lib_requires ->
       try
+        begin match lib_resolver with
+        | None -> ()
+        | Some lib_resolver ->
+            (* Before loading running the object we load the library
+               it requires; for those not already and recursively. This
+               loads them in topological order by depth first exploration
+               of the library dependency DAG. Not tailrec but stack size
+               and open handles are bound by depth of the library dependency
+               DAG. *)
+            let from_file = Some filename in
+            List.iter (loadlib lib_resolver ~from_file) lib_requires
+        end;
         global_state := check filename units !global_state ~priv;
         P.run_shared_startup handle;
         List.iter
@@ -376,11 +399,40 @@ module Make (P : Dynlink_platform_intf.S) = struct
         P.finish handle;
         raise exn
 
-  let loadfile filename = load false filename
-  let loadfile_private filename = load true filename
+  and loadlib lib_resolver ~from_file lib_name =
+    init ();
+    if is_lib_loaded lib_name then () else
+    let handle_error = function
+      | Ok () -> ()
+      | Error e ->
+          let e = match from_file with
+          | None -> e | Some file -> Lib.Resolver.err_in_archive ~file e
+          in
+          raise (DT.Error (Library_resolution_error e))
+    in
+    let get_obj = if P.is_native then Lib.cmxs else Lib.cma in
+    handle_error @@
+    Result.bind (Lib.Name.of_string lib_name) @@ fun n ->
+    Result.bind (Lib.Resolver.get lib_resolver n) @@ fun lib ->
+    Result.bind (get_obj lib) @@ fun obj ->
+    load (Some lib_resolver) ~priv:false obj;
+    global_state := set_lib_loaded lib_name !global_state;
+    Ok ()
+
+  let lib_resolver ds =
+    Lib.Resolver.create ~ocamlpath:(Lib.Ocamlpath.of_dirs ds)
+
+  let loadfile ?ocamlpath filename =
+    load (Option.map lib_resolver ocamlpath) ~priv:false filename
+
+  let loadfile_private ?ocamlpath filename =
+    load (Option.map lib_resolver ocamlpath) ~priv:true filename
+
+  let loadlib ~ocamlpath lib_name =
+    loadlib (lib_resolver ocamlpath) ~from_file:None lib_name
 
   let unsafe_get_global_value = P.unsafe_get_global_value
-
   let is_native = P.is_native
   let adapt_filename = P.adapt_filename
+  let ocamlpath_of_string s = Lib.Ocamlpath.(to_dirs (of_string s))
 end

@@ -21,10 +21,12 @@
 
 module Make (_ : Dynlink_platform_intf.S) : sig
   val is_native : bool
-  val loadfile : string -> unit
-  val loadfile_private : string -> unit
+  val loadfile : ?ocamlpath:string list -> string -> unit
+  val loadfile_private : ?ocamlpath:string list -> string -> unit
+  val loadlib : ocamlpath:string list -> string -> unit
   val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
   val adapt_filename : string -> string
+  val ocamlpath_of_string : string -> string list
   val set_allowed_units : string list -> unit
   val allow_only: string list -> unit
   val prohibit : string list -> unit

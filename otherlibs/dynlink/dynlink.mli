@@ -25,9 +25,9 @@ val is_native : bool
 
 (** {1 Dynamic loading of compiled files} *)
 
-val loadfile : string -> unit
+val loadfile : ?ocamlpath:string list -> string -> unit
 (** In bytecode: load the given bytecode object file ([.cmo] file) or
-    bytecode library file ([.cma] file), and link it with the running
+    bytecode archive file ([.cma] file), and link it with the running
     program. In native code: load the given OCaml plugin file (usually
     [.cmxs]), and link it with the running program.
 
@@ -44,9 +44,17 @@ val loadfile : string -> unit
     [loadfile_private] are not included in this restriction.
 
     The compilation units loaded by this function are added to the
-    "allowed units" list (see {!set_allowed_units}). *)
+    "allowed units" list (see {!set_allowed_units}).
 
-val loadfile_private : string -> unit
+    If the [ocamlpath] variable is specified and the loaded file
+    declares required libraries that are not {{!all_libs}yet loaded},
+    these and their unloaded recursive dependencies are resolved in
+    the directories of [ocamlpath] according to the OCaml library
+    convention and loaded before in the right order via {!loadfile};
+    If [ocamlpath] is unspecified no library resolution occurs and the
+    file is loaded as is. *)
+
+val loadfile_private : ?ocamlpath:string list -> string -> unit
 (** Same as [loadfile], except that the compilation units just loaded
     are hidden (cannot be referenced) from other modules dynamically
     loaded afterwards.
@@ -66,11 +74,32 @@ val loadfile_private : string -> unit
 
     The compilation units loaded by this function are not added to the
     "allowed units" list (see {!set_allowed_units}) since they cannot
-    be referenced from other compilation units. *)
+    be referenced from other compilation units.
+
+    If the [ocamlpath] variable is specified and the loaded file
+    declares required libraries that are not {{!all_libs}yet loaded},
+    these and their unloaded recursive dependencies are resolved in
+    the directories of [ocamlpath] according to the OCaml library
+    convention and loaded before in the right order via {!loadfile};
+    {b not} {!loadfile_private}. If [ocamlpath] is unspecified no
+    library resolution occurs and the file is loaded as is. *)
+
+val loadlib : ocamlpath:string list -> string -> unit
+(** [loadlib ~ocamlpath lib] if [lib] is not in the set of
+    {{!all_libs}loaded libraries}, [lib] and its unloaded recursive
+    dependencies are resolved in the directories of [ocamlpath] according
+    to tthe Ocaml library convention and loaded in the right order via
+    {!loadfile}. *)
 
 val adapt_filename : string -> string
 (** In bytecode, the identity function. In native code, replace the last
     extension with [.cmxs]. *)
+
+val ocamlpath_of_string : string -> string list
+(** [ocamlpath_of_string s] parses [s] into a list of directories by
+    following the OS convention for [PATH]-like variables. This means they
+    are colon ':' (semi-colon ';' if {!Sys.win32}) separated paths. Empty
+    paths are allowed and discarded. *)
 
 (** {1 Access control} *)
 
