@@ -36,6 +36,11 @@ let mk_annot f =
   "-annot", Arg.Unit f, " Save information in <filename>.annot"
 ;;
 
+let mk_assume_require f =
+  "-assume-require", Arg.String f,
+  "<lib> for linking, assume <lib> is required and already looked up"
+;;
+
 let mk_binannot f =
   "-bin-annot", Arg.Unit f, " Save typedtree in <filename>.cmt"
 ;;
@@ -903,6 +908,7 @@ let mk__ f =
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
+  val _assume_require : string -> unit
   val _I : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
@@ -1153,6 +1159,7 @@ struct
     mk_alert F._alert;
     mk_absname F._absname;
     mk_annot F._annot;
+    mk_assume_require F._assume_require;
     mk_binannot F._binannot;
     mk_c F._c;
     mk_cc F._cc;
@@ -1266,6 +1273,7 @@ struct
   let list = [
     mk_absname F._absname;
     mk_alert F._alert;
+    mk_assume_require F._assume_require;
     mk_I F._I;
     mk_init F._init;
     mk_labels F._labels;
@@ -1334,6 +1342,7 @@ struct
     mk_afl_instrument F._afl_instrument;
     mk_afl_inst_ratio F._afl_inst_ratio;
     mk_annot F._annot;
+    mk_assume_require F._assume_require;
     mk_binannot F._binannot;
     mk_inline_branch_factor F._inline_branch_factor;
     mk_c F._c;
@@ -1488,6 +1497,7 @@ module Make_opttop_options (F : Opttop_options) = struct
   let list = [
     mk_absname F._absname;
     mk_alert F._alert;
+    mk_assume_require F._assume_require;
     mk_compact F._compact;
     mk_I F._I;
     mk_init F._init;
@@ -1687,6 +1697,10 @@ module Default = struct
     let _alert = Warnings.parse_alert_option
     let _alias_deps = clear transparent_modules
     let _app_funct = set applicative_functors
+    let _assume_require lib = match Lib.Name.of_string lib with
+      | Ok lib -> assumed_requires_rev := (lib :: (!assumed_requires_rev))
+      | Error e -> raise (Arg.Bad e)
+
     let _labels = clear classic
     let _no_alias_deps = set transparent_modules
     let _no_app_funct = clear applicative_functors
@@ -1714,7 +1728,6 @@ module Default = struct
     let _w s = Warnings.parse_options false s
 
     let anonymous = anonymous
-
   end
 
   module Core = struct

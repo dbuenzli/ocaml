@@ -410,7 +410,11 @@ let link ~ppf_dump lib_resolver objfiles output_name =
       if !Clflags.nopervasives then objfiles
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
-    let lib_seen = Lib.Name.Set.of_list (!Clflags.requires_rev) in
+    let lib_seen =
+      let assumed = Lib.Name.Set.of_list (!Clflags.assumed_requires_rev) in
+      let required = Lib.Name.Set.of_list (!Clflags.requires_rev) in
+      Lib.Name.Set.union assumed required
+    in
    (* [read_objs_infos] processes objfiles from left-to-right and returns
       info in reverse order. This means that the left fold with link_obj
       for link effects processes objfiles from right-to-left. *)
@@ -418,7 +422,9 @@ let link ~ppf_dump lib_resolver objfiles output_name =
       let lib_resolver = Some lib_resolver in
       read_objs_infos ~lib_resolver lib_seen Stdlib.String.Set.empty [] objfiles
     in
-    let lib_names = if !Clflags.link_everything then Some lib_seen else None in
+    let lib_names = (* Names of fully linked libraries (including assumed) *)
+      if !Clflags.link_everything then lib_seen else Lib.Name.Set.empty
+    in
     let units_tolink = List.fold_left link_obj [] rev_obj_infos in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
