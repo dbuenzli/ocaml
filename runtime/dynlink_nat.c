@@ -80,7 +80,9 @@ CAMLprim value caml_natdynlink_open(value filename, value global)
 
   p = caml_stat_strdup_to_os(String_val(filename));
   caml_enter_blocking_section();
-  dlhandle = caml_dlopen(p, 1, Int_val(global));
+
+  /* FIXME quick hack this 0 won't work with flexdll */
+  dlhandle = caml_dlopen(p, 0, Int_val(global));
   caml_leave_blocking_section();
   caml_stat_free(p);
 
