@@ -96,6 +96,10 @@ Working version
 
 ### Other libraries:
 
+- #9338: Dynlink: make sure *_units () functions report accurate information
+  before the first load.
+  (Daniel Bünzli, review by XXX)
+
 - #9106: Register printer for Unix_error in win32unix, as in unix.
   (Christopher Zimmermann, review by David Allsopp)
 
