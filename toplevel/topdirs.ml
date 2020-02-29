@@ -289,6 +289,13 @@ let () = add_directive "require"
     (Directive_string (dir_require std_out))
     { section = section_run; doc = "Load a library and its dependencies." }
 
+let load_lib ppf name = match Lib.Name.of_string name with
+  | Error e -> fprintf ppf "@[%s@]@." e; false
+  | Ok n ->
+      match load_lib ppf ~from_file:None n with
+      | exception Load_failed -> false
+      | _ -> true
+
 (* Load commands from a file *)
 
 let dir_use ppf name = ignore(Toploop.use_file ppf name)

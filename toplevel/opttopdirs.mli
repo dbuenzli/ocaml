@@ -43,3 +43,8 @@ val assume_lib_loaded : string -> (unit, string) result
 (** [assume_lib_loaded n] assumes library name [n] is loaded. This
     will prevent [n] from being looked up. An error is returned if
     [n] is not a valid library name. *)
+
+val load_lib : formatter -> string -> bool
+(** [load_lib ppf n] loads library named [n] printing errors on [ppf]
+    and returns [true] if there was no error (including if [n] as
+    already loaded) and [false] otherwise. *)

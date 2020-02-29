@@ -136,6 +136,13 @@ let dir_require ppf name = match Lib.Name.of_string name with
 let () =
   Hashtbl.add directive_table "require" (Directive_string (dir_require std_out))
 
+let load_lib ppf name = match Lib.Name.of_string name with
+  | Error e -> fprintf ppf "@[%s@]@." e; false
+  | Ok _n ->
+      (* We need to implement the Dynlink lib loading API support *)
+      fprintf ppf "load_lib is not implemented yet (TODO)";
+      false
+
 (* Load commands from a file *)
 
 let dir_use ppf name = ignore(Opttoploop.use_file ppf name)
