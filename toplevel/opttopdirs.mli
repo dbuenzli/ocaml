@@ -35,3 +35,11 @@ val load_file : formatter -> string -> bool
 val loaded_files : unit -> Set.Make(String).t
 (** [loaded_files ()] is the set of object and archive files that were
     loaded so far. *)
+
+val loaded_libs : unit -> Set.Make(String).t
+(** [loaded_libs ()] is the set of libraries that were loaded so far. *)
+
+val assume_lib_loaded : string -> (unit, string) result
+(** [assume_lib_loaded n] assumes library name [n] is loaded. This
+    will prevent [n] from being looked up. An error is returned if
+    [n] is not a valid library name. *)

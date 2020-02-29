@@ -24,6 +24,11 @@ open Typedtree
 open Outcometree
 open Ast_helper
 
+external ndl_imported_libs : unit -> Lib.Name.Set.t =
+  "caml_natdynlink_imported_libs"
+
+let statically_linked_libs = ndl_imported_libs ()
+
 type res = Ok of Obj.t | Err of string
 type evaluation_outcome = Result of Obj.t | Exception of exn
 

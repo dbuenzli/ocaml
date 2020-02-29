@@ -160,6 +160,7 @@ let load_compunit ic filename ppf compunit =
     raise Load_failed
   end
 
+let loaded_libs = ref Toploop.statically_linked_libs
 let loaded_files = ref Stdlib.String.Set.empty
 
 let rec load_file recursive ppf name = match Load_path.find name with
@@ -239,6 +240,12 @@ let _ = add_directive "load_rec"
 let load_file = load_file false
 let loaded_files () = !loaded_files
 
+let assume_lib_loaded n = match Lib.Name.of_string n with
+| Error _ as e -> e
+| Ok n -> loaded_libs := Lib.Name.Set.add n !loaded_libs; Ok ()
+
+let loaded_libs () = Lib.Name.Set.to_string_set !loaded_libs
+
 (* Load commands from a file *)
 
 let dir_use ppf name = ignore(Toploop.use_file ppf name)
@@ -256,7 +263,6 @@ let _ = add_directive "mod_use" (Directive_string (dir_mod_use std_out))
       doc = "Usage is identical to #use but #mod_use \
              wraps the contents in a module.";
     }
-
 
 (* Install, remove a printer *)
 

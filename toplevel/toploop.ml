@@ -490,15 +490,15 @@ let refill_lexbuf buffer len =
    before cli parsing and the load path will be reinitalized at least
    twice later (see [set_paths], [Topmain.main] or [run_script]). *)
 
-let () =
+let statically_linked_libs =
   if !Sys.interactive then (* PR#6108 *)
     invalid_arg "The ocamltoplevel.cma library from compiler-libs \
                  cannot be loaded inside the OCaml toplevel";
   Sys.interactive := true;
-  let crc_intfs, _lib_names = Symtable.init_toplevel() in
+  let crc_intfs, lib_names = Symtable.init_toplevel() in
   Compmisc.init_path () ~libs:[];
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
-  ()
+  lib_names
 
 let find_ocamlinit () =
   let ocamlinit = ".ocamlinit" in

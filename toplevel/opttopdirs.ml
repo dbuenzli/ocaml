@@ -73,6 +73,7 @@ let _ = Hashtbl.add directive_table "cd" (Directive_string dir_cd)
 
 (* Load in-core a .cmxs file *)
 
+let loaded_libs = ref Opttoploop.statically_linked_libs
 let loaded_files = ref Stdlib.String.Set.empty
 
 let load_file ppf name0 =
@@ -110,11 +111,16 @@ let load_file ppf name0 =
     if loaded then loaded_files := Stdlib.String.Set.add name !loaded_files;
     loaded
 
-let loaded_files () = !loaded_files
-
 let dir_load ppf name = ignore (load_file ppf name)
 
 let _ = Hashtbl.add directive_table "load" (Directive_string (dir_load std_out))
+
+let loaded_files () = !loaded_files
+let assume_lib_loaded n = match Lib.Name.of_string n with
+| Error _ as e -> e
+| Ok n -> loaded_libs := Lib.Name.Set.add n !loaded_libs; Ok ()
+
+let loaded_libs () = Lib.Name.Set.to_string_set !loaded_libs
 
 (* Load commands from a file *)
 

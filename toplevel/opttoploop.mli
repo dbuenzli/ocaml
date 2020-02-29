@@ -15,6 +15,10 @@
 
 open Format
 
+val statically_linked_libs : Lib.Name.Set.t
+(** [statically_linked_libs] are the libraries that are statically linked in
+    the toplevel executable. *)
+
 (* Set the load paths, before running anything *)
 
 val set_paths : unit -> unit
