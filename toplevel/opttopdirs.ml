@@ -73,7 +73,10 @@ let _ = Hashtbl.add directive_table "cd" (Directive_string dir_cd)
 
 (* Load in-core a .cmxs file *)
 
-let loaded_libs = ref Opttoploop.statically_linked_libs
+let loaded_libs =
+  let assumed = Lib.Name.Set.of_list !Clflags.assumed_requires_rev in
+  ref (Lib.Name.Set.union (Opttoploop.statically_linked_libs) assumed)
+
 let loaded_files = ref Stdlib.String.Set.empty
 
 let load_file ppf name0 =

@@ -160,7 +160,10 @@ let load_compunit ic filename ppf compunit =
     raise Load_failed
   end
 
-let loaded_libs = ref Toploop.statically_linked_libs
+let loaded_libs =
+  let assumed = Lib.Name.Set.of_list !Clflags.assumed_requires_rev in
+  ref (Lib.Name.Set.union Toploop.statically_linked_libs assumed)
+
 let loaded_files = ref Stdlib.String.Set.empty
 
 let rec load_file recursive ppf name = match Load_path.find name with
