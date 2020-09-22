@@ -53,6 +53,7 @@ type compilation_unit =
 type library =
   { lib_units: compilation_unit list;   (* List of compilation units *)
     lib_custom: bool;                   (* Requires custom mode linking? *)
+    lib_requires: Lib.Name.t list;      (* Names of required libraries. *)
     (* In the following fields the lists are reversed with respect to
        how they end up being used on the command line. *)
     lib_ccobjs: string list;            (* C object files needed for -custom *)

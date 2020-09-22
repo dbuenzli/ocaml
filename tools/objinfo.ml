@@ -83,7 +83,9 @@ let print_spaced_string s =
 
 let print_cma_infos (lib : Cmo_format.library) =
   printf "Force custom: %s\n" (if lib.lib_custom then "YES" else "no");
-  printf "Extra C object files:";
+  printf "Required libraries:";
+  List.iter print_spaced_string (List.map Lib.Name.to_string lib.lib_requires);
+  printf "\nExtra C object files:";
   (* PR#4949: print in linking order *)
   List.iter print_spaced_string (List.rev lib.lib_ccobjs);
   printf "\nExtra C options:";
@@ -176,7 +178,9 @@ let print_cmx_infos (ui, crc) =
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
-  printf "Extra C object files:";
+  printf "Required libraries:";
+  List.iter print_spaced_string (List.map Lib.Name.to_string lib.lib_requires);
+  printf "\nExtra C object files:";
   List.iter print_spaced_string (List.rev lib.lib_ccobjs);
   printf "\nExtra C options:";
   List.iter print_spaced_string (List.rev lib.lib_ccopts);
@@ -184,6 +188,10 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   List.iter print_cmx_infos lib.lib_units
 
 let print_cmxs_infos header =
+  printf "Required libraries:";
+  List.iter print_spaced_string
+    (List.map Lib.Name.to_string header.dynu_requires);
+  printf "\n";
   List.iter
     (fun ui ->
        print_general_infos

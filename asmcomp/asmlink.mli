@@ -20,7 +20,9 @@ open Format
 
 val link: ppf_dump:formatter -> string list -> string -> unit
 
-val link_shared: ppf_dump:formatter -> string list -> string -> unit
+val link_shared:
+  ppf_dump:formatter -> requires:Lib.Name.t list -> string list -> string ->
+  unit
 
 val call_linker_shared: string list -> string -> unit
 

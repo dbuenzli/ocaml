@@ -36,6 +36,18 @@ val get_objfiles : with_ocamlparam:bool -> string list
 val last_objfiles : string list ref
 val first_objfiles : string list ref
 
+val get_requires :
+  unit -> [ `Lib of Lib.Name.t | `File_and_deps of string ] list
+(** [get_requires ()] is the list of required libraries and files whose
+    required libraries should be resolved as found in
+    {!Cflags.rev_requires}. *)
+
+val get_lib_requires_fatal_on_file : err_context:string -> Lib.Name.t list
+(** [get_lib_requires_fatal_on_file ()] is the list of libraries mentioned
+    in {!Clflags.rev_requires}. If the latter has [`File] elements
+    calls {!Compenv.fatal} with an appropriate error message that
+    mentions [err_context]. *)
+
 val stop_early : bool ref
 
 type filename = string

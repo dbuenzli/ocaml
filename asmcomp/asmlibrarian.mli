@@ -17,7 +17,7 @@
 
 open Format
 
-val create_archive: string list -> string -> unit
+val create_archive: requires:Lib.Name.t list -> string list -> string -> unit
 
 type error =
     File_not_found of string

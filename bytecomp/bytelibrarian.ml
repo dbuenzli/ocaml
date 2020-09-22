@@ -39,6 +39,7 @@ let copy_compunit ic oc compunit =
 
 (* Add C objects and options and "custom" info from a library descriptor *)
 
+let lib_requires = ref []
 let lib_ccobjs = ref []
 let lib_ccopts = ref []
 let lib_dllibs = ref []
@@ -48,6 +49,7 @@ let lib_dllibs = ref []
    left to right, hence options must be added after. *)
 
 let add_ccobjs l =
+  lib_requires := l.lib_requires :: !lib_requires;
   if not !Clflags.no_auto_link then begin
     if l.lib_custom then Clflags.custom_runtime := true;
     lib_ccobjs := !lib_ccobjs @ l.lib_ccobjs;
@@ -88,7 +90,7 @@ let copy_object_file oc name =
     End_of_file -> close_in ic; raise(Error(Not_an_object_file file_name))
   | x -> close_in ic; raise x
 
-let create_archive file_list lib_name =
+let create_archive ~requires file_list lib_name =
   let outchan = open_out_bin lib_name in
   Misc.try_finally
     ~always:(fun () -> close_out outchan)
@@ -99,8 +101,11 @@ let create_archive file_list lib_name =
        output_binary_int outchan 0;
        let units =
          List.flatten(List.map (copy_object_file outchan) file_list) in
+       let requires =
+         List.(concat @@ rev (requires :: !lib_requires)) in
        let toc =
          { lib_units = units;
+           lib_requires = Lib.Name.uniquify requires;
            lib_custom = !Clflags.custom_runtime;
            lib_ccobjs = !Clflags.ccobjs @ !lib_ccobjs;
            lib_ccopts = !Clflags.all_ccopts @ !lib_ccopts;
@@ -130,6 +135,7 @@ let () =
     )
 
 let reset () =
+  lib_requires := [];
   lib_ccobjs := [];
   lib_ccopts := [];
   lib_dllibs := []

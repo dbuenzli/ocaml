@@ -85,9 +85,11 @@ let main argv ppf =
     end;
     if !make_archive then begin
       Compmisc.init_path ();
-      let target = Compenv.extract_output !output_name in
-      Asmlibrarian.create_archive
-        (Compenv.get_objfiles ~with_ocamlparam:false) target;
+      let err_context = "archive creation" in
+      let requires = Compenv.get_lib_requires_fatal_on_file ~err_context in
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
+      let out_file = Compenv.extract_output !output_name in
+      Asmlibrarian.create_archive ~requires objfiles out_file;
       Warnings.check_fatal ();
     end
     else if !make_package then begin
@@ -100,10 +102,12 @@ let main argv ppf =
     end
     else if !shared then begin
       Compmisc.init_path ();
-      let target = Compenv.extract_output !output_name in
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Asmlink.link_shared ~ppf_dump
-          (Compenv.get_objfiles ~with_ocamlparam:false) target);
+      let err_context = "shared object creation" in
+      let requires = Compenv.get_lib_requires_fatal_on_file ~err_context in
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
+      let out_file = Compenv.extract_output !output_name in
+      Compmisc.with_ppf_dump ~file_prefix:out_file (fun ppf_dump ->
+        Asmlink.link_shared ~ppf_dump ~requires objfiles out_file);
       Warnings.check_fatal ();
     end
     else if not !Compenv.stop_early && !objfiles <> [] then begin

@@ -576,10 +576,17 @@ let get_objfiles ~with_ocamlparam =
   else
     List.rev !objfiles
 
-
-
-
-
+let get_requires () = List.rev !Clflags.requires_rev
+let get_lib_requires_fatal_on_file ~err_context =
+  let add_lib acc = function
+    | `Lib lib -> lib :: acc
+    | `File_and_deps file ->
+        fatal @@
+        Printf.sprintf
+          "-require %s: illegal, only library names be used during %s"
+          file err_context
+  in
+  List.fold_left add_lib [] !Clflags.requires_rev
 
 type deferred_action =
   | ProcessImplementation of string

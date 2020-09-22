@@ -67,10 +67,11 @@ let main argv ppf =
     end;
     if !make_archive then begin
       Compmisc.init_path ();
-
-      Bytelibrarian.create_archive
-        (Compenv.get_objfiles ~with_ocamlparam:false)
-        (Compenv.extract_output !output_name);
+      let err_context = "archive creation" in
+      let requires = Compenv.get_lib_requires_fatal_on_file ~err_context in
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
+      let out_file = Compenv.extract_output !output_name in
+      Bytelibrarian.create_archive ~requires objfiles out_file;
       Warnings.check_fatal ();
     end
     else if !make_package then begin
