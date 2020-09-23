@@ -163,7 +163,7 @@ let main () =
         Filename.check_suffix filename ".cmti"
     then begin
       let open Cmt_format in
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let cmt = read_cmt filename in
       if !gen_annot then begin
         if !save_cmt_info then record_cmt_info cmt;

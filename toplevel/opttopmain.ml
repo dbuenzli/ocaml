@@ -112,5 +112,5 @@ let main () =
   end;
   Compmisc.read_clflags_from_env ();
   if not (prepare Format.err_formatter) then exit 2;
-  Compmisc.init_path ();
+  Compmisc.init_path () ~libs:[];
   Opttoploop.loop Format.std_formatter

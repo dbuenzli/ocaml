@@ -24,7 +24,7 @@ val get_libs :
     (defaults to {!Lib.Name.Set.empty}) are omitted from the result.
     Errors with {!Compenv.fatal} on resolution errors. *)
 
-val init_path : ?dir:string -> unit -> unit
+val init_path : ?dir:string -> unit -> libs:Lib.t list -> unit
 val initial_env : unit -> Env.t
 
 (* Support for flags that can also be set from an environment variable *)

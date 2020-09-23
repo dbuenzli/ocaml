@@ -562,7 +562,7 @@ let refill_lexbuf buffer len =
 
 let _ =
   Sys.interactive := true;
-  Compmisc.init_path ();
+  Compmisc.init_path () ~libs:[];
   Clflags.dlcode := true;
   ()
 
@@ -670,7 +670,7 @@ let override_sys_argv new_argv =
 
 let run_script ppf name args =
   override_sys_argv args;
-  Compmisc.init_path ~dir:(Filename.dirname name) ();
+  Compmisc.init_path ~dir:(Filename.dirname name) () ~libs:[];
                    (* Note: would use [Filename.abspath] here, if we had it. *)
   toplevel_env := Compmisc.initial_env();
   Sys.interactive := false;

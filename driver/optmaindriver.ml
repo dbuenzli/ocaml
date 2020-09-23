@@ -84,7 +84,7 @@ let main argv ppf =
              (Clflags.Compiler_pass.available_pass_names ~native:true))
     end;
     if !make_archive then begin
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let err_context = "archive creation" in
       let requires = Compenv.get_lib_requires_fatal_on_file ~err_context in
       let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
@@ -93,7 +93,7 @@ let main argv ppf =
       Warnings.check_fatal ();
     end
     else if !make_package then begin
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let target = Compenv.extract_output !output_name in
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
         Asmpackager.package_files ~ppf_dump (Compmisc.initial_env ())
@@ -101,7 +101,7 @@ let main argv ppf =
       Warnings.check_fatal ();
     end
     else if !shared then begin
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       let err_context = "shared object creation" in
       let requires = Compenv.get_lib_requires_fatal_on_file ~err_context in
       let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
@@ -126,7 +126,7 @@ let main argv ppf =
         else
           Compenv.default_output !output_name
       in
-      Compmisc.init_path ();
+      Compmisc.init_path () ~libs:[];
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
           let objs = Compenv.get_objfiles ~with_ocamlparam:true in
           Asmlink.link ~ppf_dump objs target);

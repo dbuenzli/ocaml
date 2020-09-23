@@ -24,7 +24,11 @@ open Typedtree
    The current directory is always searched first,
    then the directories specified with the -I option (in command-line order),
    then the standard library directory. *)
-let init_path () = Compmisc.init_path ()
+let init_path () =
+  let err_context = "documentation generation" in
+  let libs = Compenv.get_lib_requires_fatal_on_file ~err_context in
+  let libs = Compmisc.get_libs (Compmisc.get_lib_resolver ()) libs in
+  Compmisc.init_path () ~libs
 
 (** Return the initial environment in which compilation proceeds. *)
 let initial_env () =

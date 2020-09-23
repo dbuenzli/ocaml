@@ -42,11 +42,11 @@ let get_libs ?(prune = Lib.Name.Set.empty) r libs =
    then the standard library directory (unless the -nostdlib option is given).
  *)
 
-let init_path ?(dir="") () =
+let init_path ?(dir="") () ~libs =
   let dirs =
-    if !Clflags.use_threads then "+threads" :: !Clflags.include_dirs
-    else
-      !Clflags.include_dirs
+    let lib_dirs = List.map Lib.dir libs in
+    let dirs = List.rev_append lib_dirs !Clflags.include_dirs in
+    if !Clflags.use_threads then "+threads" :: dirs else dirs
   in
   let dirs =
     !Compenv.last_include_dirs @ dirs @ Config.flexdll_dirs @
