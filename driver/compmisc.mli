@@ -13,6 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
+val get_lib_resolver : unit -> Lib.Resolver.t
+(** [get_lib_resolver ()] is a library resolver initialized with
+    {!Clflags.rev_ocamlpath} and {!Config.ocamlpath} *)
+
+val get_libs :
+  ?prune:Lib.Name.Set.t -> Lib.Resolver.t -> Lib.Name.t list -> Lib.t list
+(** [get_libs ~prune r names] are the library names [names] resolved
+    in [r], in order. Elements of [names] that are in [prune]
+    (defaults to {!Lib.Name.Set.empty}) are omitted from the result.
+    Errors with {!Compenv.fatal} on resolution errors. *)
+
 val init_path : ?dir:string -> unit -> unit
 val initial_env : unit -> Env.t
 

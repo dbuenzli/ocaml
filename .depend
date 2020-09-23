@@ -5861,6 +5861,7 @@ driver/compmisc.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     utils/config.cmi \
@@ -5874,6 +5875,7 @@ driver/compmisc.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     utils/config.cmx \
@@ -5881,6 +5883,7 @@ driver/compmisc.cmx : \
     utils/clflags.cmx \
     driver/compmisc.cmi
 driver/compmisc.cmi : \
+    utils/lib.cmi \
     typing/env.cmi \
     utils/clflags.cmi
 driver/errors.cmo : \

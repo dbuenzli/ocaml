@@ -13,6 +13,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
+let get_lib_resolver =
+  (* Lazy global to create it as needed and share the cache between
+     the explicit main and the deferred actions. *)
+  let lib_resolver =
+    lazy begin
+      let cli = Lib.Ocamlpath.of_dirs (List.rev !Clflags.ocamlpath_rev) in
+      let env = Lib.Ocamlpath.of_dirs Config.ocamlpath in
+      let ocamlpath = Lib.Ocamlpath.append cli env in
+      Lib.Resolver.create ~ocamlpath
+    end
+  in
+  fun () -> Lazy.force lib_resolver
+
+let get_libs ?(prune = Lib.Name.Set.empty) r libs =
+  let get r n = match Lib.Name.Set.mem n prune with
+  | true -> None
+  | false ->
+    match Lib.Resolver.get r n with
+    | Ok l -> Some l | Error e -> Compenv.fatal e
+  in
+  let requires = Lib.Name.uniquify libs in
+  List.filter_map (get r) requires
+
 (* Initialize the search path.
    [dir] is always searched first (default: the current directory),
    then the directories specified with the -I option (in command-line order),
