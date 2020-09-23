@@ -28,7 +28,9 @@ val standard_library: string
 
 val ocamlpath : string list
 (** The library search path as defined by the [OCAMLPATH] environment
-    variable. *)
+    variable. Note that this does not include the extensions made on
+    the cli via [-L] options and stored in {!Clflags.ocamlpath_rev}.
+    The two are eventually merged in {!Compmisc}. *)
 
 val ccomp_type: string
 (** The "kind" of the C compiler, assembler and linker used: one of

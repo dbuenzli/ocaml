@@ -21,6 +21,7 @@ module type Common_options = sig
   val _alert : string -> unit
   val _assume_library : string -> unit
   val _I : string -> unit
+  val _L : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit

@@ -45,6 +45,7 @@ and dllibs = ref ([] : string list)     (* .so and -dllib -lxxx *)
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
 and include_dirs = ref ([] : string list)(* -I *)
+and ocamlpath_rev = ref ([] : string list) (* -L *)
 and requires_rev = (* -require *)
   ref ([] : [ `Lib of Lib.Name.t | `File_and_deps of string ] list)
 

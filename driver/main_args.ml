@@ -292,6 +292,11 @@ let mk_no_keep_locs f =
   "-no-keep-locs", Arg.Unit f, " Do not keep locations in .cmi files"
 ;;
 
+let mk_L f =
+  "-L", Arg.String f,
+  "<dir>  Prepend <dir> to the OCAMLPATH (if repeated, from right to left)"
+;;
+
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
 ;;
@@ -900,6 +905,7 @@ module type Common_options = sig
   val _alert : string -> unit
   val _assume_library : string -> unit
   val _I : string -> unit
+  val _L : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -1168,6 +1174,7 @@ struct
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
     mk_I F._I;
+    mk_L F._L;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1263,6 +1270,7 @@ struct
     mk_alert F._alert;
     mk_assume_library F._assume_library;
     mk_I F._I;
+    mk_L F._L;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1351,6 +1359,7 @@ struct
     mk_stop_after ~native:true F._stop_after;
     mk_i F._i;
     mk_I F._I;
+    mk_L F._L;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1487,6 +1496,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_assume_library F._assume_library;
     mk_compact F._compact;
     mk_I F._I;
+    mk_L F._L;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1588,6 +1598,7 @@ struct
     mk_absname F._absname;
     mk_alert F._alert;
     mk_I F._I;
+    mk_L F._L;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1689,6 +1700,7 @@ module Default = struct
 
     let _alias_deps = clear transparent_modules
     let _app_funct = set applicative_functors
+    let _L dir = ocamlpath_rev := (dir :: (!ocamlpath_rev))
     let _labels = clear classic
     let _no_alias_deps = set transparent_modules
     let _no_app_funct = clear applicative_functors
