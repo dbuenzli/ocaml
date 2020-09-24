@@ -48,6 +48,7 @@ and include_dirs = ref ([] : string list)(* -I *)
 and requires_rev = (* -require *)
   ref ([] : [ `Lib of Lib.Name.t | `File_and_deps of string ] list)
 
+and assume_libs_rev = ref ([] : Lib.Name.t list) (* -assume-library *)
 and no_std_include = ref false          (* -nostdlib *)
 and print_types = ref false             (* -i *)
 and make_archive = ref false            (* -a *)

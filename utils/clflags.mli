@@ -73,6 +73,7 @@ val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
 val requires_rev : [ `Lib of Lib.Name.t | `File_and_deps of string ] list ref
+val assume_libs_rev : Lib.Name.t list ref
 val no_std_include : bool ref
 val print_types : bool ref
 val make_archive : bool ref
