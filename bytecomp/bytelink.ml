@@ -39,6 +39,42 @@ type link_action =
   | Link_archive of string * compilation_unit list
       (* Name of .cma file and descriptors of the units to be linked. *)
 
+(* Read bytecode objects information *)
+
+let read_cmo_info file_name ic =
+  let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
+  seek_in ic compunit_pos;
+  let compunit = (input_value ic : compilation_unit) in
+  close_in ic;
+  `Cmo (file_name, compunit)
+
+let read_cma_info file_name ic =
+  let pos_toc = input_binary_int ic in    (* Go to table of contents *)
+  seek_in ic pos_toc;
+  let toc = (input_value ic : library) in
+  close_in ic;
+  `Cma (file_name, toc)
+
+let rec read_obj_infos rev_infos = function
+  | [] -> List.rev rev_infos
+  | obj_name :: obj_names ->
+      let file_name =
+        try Load_path.find obj_name
+        with Not_found -> raise (Error (File_not_found obj_name))
+      in
+      let ic = open_in_bin file_name in
+      try
+        let magic = really_input_string ic (String.length cmo_magic_number) in
+        if magic = cmo_magic_number then
+          read_obj_infos (read_cmo_info file_name ic :: rev_infos) obj_names
+        else if magic = cma_magic_number then
+          read_obj_infos (read_cma_info file_name ic :: rev_infos) obj_names
+        else
+          raise (Error (Not_an_object_file file_name))
+      with
+      | End_of_file -> close_in ic; raise (Error (Not_an_object_file file_name))
+      | x -> close_in ic; raise x
+
 (* Add C objects and options from a library descriptor *)
 (* Ignore them if -noautolink or -use-runtime or -use-prim was given *)
 
@@ -107,20 +143,6 @@ let remove_required (rel, _pos) =
       missing_globals := Ident.Map.remove id !missing_globals
   | _ -> ()
 
-let read_cmo_info file_name ic =
-  let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
-  seek_in ic compunit_pos;
-  let compunit = (input_value ic : compilation_unit) in
-  close_in ic;
-  file_name, compunit
-
-let read_cma_info file_name ic =
-  let pos_toc = input_binary_int ic in    (* Go to table of contents *)
-  seek_in ic pos_toc;
-  let toc = (input_value ic : library) in
-  close_in ic;
-  file_name, toc
-
 let scan_cmo file_name compunit =
   (* This is a .cmo file. It must be linked in any case.
      The relocation information indicates which modules it requires. *)
@@ -147,27 +169,9 @@ let scan_cma file_name toc =
       toc.lib_units [] in
   Link_archive(file_name, required)
 
-let scan_file obj_name tolink =
-  let file_name =
-    try
-      Load_path.find obj_name
-    with Not_found ->
-      raise(Error(File_not_found obj_name)) in
-  let ic = open_in_bin file_name in
-  try
-    let buffer = really_input_string ic (String.length cmo_magic_number) in
-    if buffer = cmo_magic_number then begin
-      let file_name, compunit = read_cmo_info file_name ic in
-      scan_cmo file_name compunit :: tolink
-    end
-    else if buffer = cma_magic_number then begin
-      let file_name, toc = read_cma_info file_name ic in
-      scan_cma file_name toc :: to_link
-    end
-    else raise(Error(Not_an_object_file file_name))
-  with
-    End_of_file -> close_in ic; raise(Error(Not_an_object_file file_name))
-  | x -> close_in ic; raise x
+let scan_file file tolink = match file with
+  | `Cmo (file_name, compunit) -> scan_cmo file_name compunit :: tolink
+  | `Cma (file_name, toc) -> scan_cma file_name toc :: tolink
 
 (* Second pass: link in the required units *)
 
@@ -632,7 +636,8 @@ let link objfiles output_name =
     | false, true, false -> "stdlib.cma" :: objfiles
     | _                  -> "stdlib.cma" :: objfiles @ ["std_exit.cmo"]
   in
-  let tolink = List.fold_right scan_file objfiles [] in
+  let obj_infos = read_obj_infos [] objfiles in
+  let tolink = List.fold_right scan_file obj_infos [] in
   let missing_modules =
     Ident.Map.filter (fun id _ -> not (Ident.is_predef id)) !missing_globals
   in
