@@ -358,7 +358,7 @@ let make_absolute file =
 
 (* Create a bytecode executable file *)
 
-let link_bytecode ?final_name tolink exec_name standalone =
+let link_bytecode ?final_name tolink ~lib_names exec_name standalone =
   let final_name = Option.value final_name ~default:exec_name in
   (* Avoid the case where the specified exec output file is the same as
      one of the objects to be linked *)
@@ -450,6 +450,13 @@ let link_bytecode ?final_name tolink exec_name standalone =
        (* CRCs for modules *)
        output_value outchan (extract_crc_interfaces());
        Bytesections.record outchan "CRCS";
+       (* Names of libraries fully linked (or assumed to be so). *)
+       begin match lib_names with
+       | None -> ()
+       | Some libs ->
+           output_value outchan libs;
+           Bytesections.record outchan "LIBS";
+       end;
        (* Debug info *)
        if !Clflags.debug then begin
          output_debug_info outchan;
@@ -517,7 +524,7 @@ let output_cds_file outfile =
 
 (* Output a bytecode executable as a C file *)
 
-let link_bytecode_as_c tolink outfile with_main =
+let link_bytecode_as_c tolink ~lib_names outfile with_main =
   let outchan = open_out outfile in
   Misc.try_finally
     ~always:(fun () -> close_out outchan)
@@ -551,9 +558,13 @@ let link_bytecode_as_c tolink outfile with_main =
        output_string outchan "\n};\n\n";
        (* The sections *)
        let sections =
-         [ "SYMB", Symtable.data_global_map();
-           "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
+         ("SYMB", Symtable.data_global_map()) ::
+         ("PRIM", Obj.repr(Symtable.data_primitive_names())) ::
+         ("CRCS", Obj.repr(extract_crc_interfaces())) ::
+         (match lib_names with
+          | None -> []
+          | Some libs -> ("LIBS", Obj.repr libs) :: [])
+       in
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);
@@ -698,7 +709,7 @@ let link r ~assume_libs (entities : entity list) output_name =
                                                    (* put user's opts first *)
   Clflags.dllibs := !lib_dllibs @ !Clflags.dllibs; (* put user's DLLs first *)
   if not !Clflags.custom_runtime then
-    link_bytecode tolink output_name true
+    link_bytecode tolink ~lib_names output_name true
   else if not !Clflags.output_c_object then begin
     let bytecode_name = Filename.temp_file "camlcode" "" in
     let prim_name =
@@ -711,7 +722,8 @@ let link r ~assume_libs (entities : entity list) output_name =
           remove_file bytecode_name;
           if not !Clflags.keep_camlprimc_file then remove_file prim_name)
       (fun () ->
-         link_bytecode ~final_name:output_name tolink bytecode_name false;
+         link_bytecode
+           ~final_name:output_name tolink ~lib_names bytecode_name false;
          let poc = open_out prim_name in
          (* note: builds will not be reproducible if the C code contains macros
             such as __FILE__. *)
@@ -761,7 +773,8 @@ let link r ~assume_libs (entities : entity list) output_name =
     Misc.try_finally
       ~always:(fun () -> List.iter remove_file !temps)
       (fun () ->
-         link_bytecode_as_c tolink c_file !Clflags.output_complete_executable;
+         link_bytecode_as_c
+           tolink ~lib_names c_file !Clflags.output_complete_executable;
          if !Clflags.output_complete_executable then begin
            temps := c_file :: !temps;
            if not (build_custom_runtime c_file output_name) then
