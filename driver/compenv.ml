@@ -593,6 +593,9 @@ let get_lib_requires_fatal_on_file ~err_context =
   in
   List.fold_left add_lib [] !Clflags.requires_rev
 
+let get_assume_libs () = Lib.Name.Set.of_list !Clflags.assume_libs_rev
+
+
 type deferred_action =
   | ProcessImplementation of string
   | ProcessInterface of string

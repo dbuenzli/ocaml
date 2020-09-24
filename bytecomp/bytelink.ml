@@ -19,7 +19,11 @@ open Misc
 open Config
 open Cmo_format
 
+type entity =
+  [ `Lib of Lib.Name.t | `File_and_deps of filepath | `File of filepath ]
+
 type error =
+  | Lib_resolution_error of filepath option * string
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
@@ -55,25 +59,63 @@ let read_cma_info file_name ic =
   close_in ic;
   `Cma (file_name, toc)
 
-let rec read_obj_infos rev_infos = function
-  | [] -> List.rev rev_infos
-  | obj_name :: obj_names ->
+let find_lib_cma r (`Lib n | `Lib_from_cma (n, _) as l) =
+  let err e =
+    let src = match l with `Lib _ -> None | `Lib_from_cma (_, f) -> Some f in
+    raise (Error (Lib_resolution_error (src, e)))
+  in
+  match Lib.Resolver.get r n with
+  | Error e -> err e
+  | Ok lib -> match Lib.cma lib with Error e -> err e | Ok cma -> cma
+
+let rec read_cma_deps (`Cma (file, toc)) r lib_seen rev_infos =
+  let libs = List.map (fun n -> `Lib_from_cma (n, file)) toc.lib_requires in
+  read_obj_infos_rev r lib_seen rev_infos libs
+
+and read_obj_infos_rev r lib_seen rev_infos = function
+  | [] -> lib_seen, rev_infos
+  | ((`Lib n | `Lib_from_cma (n, _)) as lib) :: entities ->
+      begin match Lib.Name.Set.mem n lib_seen with
+      | true -> read_obj_infos_rev r lib_seen rev_infos entities
+      | false ->
+          let lib_seen = Lib.Name.Set.add n lib_seen in
+          let cma = `File_and_deps (find_lib_cma r lib) in
+          read_obj_infos_rev r lib_seen rev_infos (cma :: entities)
+      end
+  | ((`File file_name | `File_and_deps file_name) as file) :: entities ->
       let file_name =
-        try Load_path.find obj_name
-        with Not_found -> raise (Error (File_not_found obj_name))
+        try Load_path.find file_name
+        with Not_found -> raise (Error (File_not_found file_name))
       in
       let ic = open_in_bin file_name in
       try
         let magic = really_input_string ic (String.length cmo_magic_number) in
         if magic = cmo_magic_number then
-          read_obj_infos (read_cmo_info file_name ic :: rev_infos) obj_names
+          let cmo = read_cmo_info file_name ic in
+          read_obj_infos_rev r lib_seen (cmo :: rev_infos) entities
         else if magic = cma_magic_number then
-          read_obj_infos (read_cma_info file_name ic :: rev_infos) obj_names
+          let cma = read_cma_info file_name ic in
+          let lib_seen, rev_infos = match file with
+            | `File _ -> lib_seen, rev_infos
+            | `File_and_deps _ ->
+                (* Before adding the info for the cma to [rev_infos] we add the
+                   info for the cmas of the libraries it requires; for those not
+                   already seen and recursively. Implicitely this makes a stable
+                   topological sort of the cmas and their required libraries by
+                   depth first exploration of the library dependency DAG.
+                   Not TR but bound by depth of the dependency DAG. *)
+                read_cma_deps cma r lib_seen rev_infos
+          in
+          read_obj_infos_rev r lib_seen (cma :: rev_infos) entities
         else
-          raise (Error (Not_an_object_file file_name))
+        raise (Error (Not_an_object_file file_name))
       with
       | End_of_file -> close_in ic; raise (Error (Not_an_object_file file_name))
       | x -> close_in ic; raise x
+
+let read_obj_infos r lib_seen entities =
+  let lib_seen, rev_infos = read_obj_infos_rev r lib_seen [] entities in
+  lib_seen, List.rev rev_infos
 
 (* Add C objects and options from a library descriptor *)
 (* Ignore them if -noautolink or -use-runtime or -use-prim was given *)
@@ -625,18 +667,22 @@ let fix_exec_name name =
 
 (* Main entry point (build a custom runtime if needed) *)
 
-let link objfiles output_name =
-  let objfiles =
-    match
-      !Clflags.nopervasives,
-      !Clflags.output_c_object,
-      !Clflags.output_complete_executable
-    with
-    | true, _, _         -> objfiles
-    | false, true, false -> "stdlib.cma" :: objfiles
-    | _                  -> "stdlib.cma" :: objfiles @ ["std_exit.cmo"]
+let link r ~assume_libs (entities : entity list) output_name =
+  let stdlib_cma = `File "stdlib.cma" in
+  let std_exit_cmo = `File "std_exit.cmo" in
+  let entities =
+    ((match
+       !Clflags.nopervasives,
+       !Clflags.output_c_object,
+       !Clflags.output_complete_executable
+     with
+     | true, _, _         ->  entities
+     | false, true, false ->  stdlib_cma :: entities
+     | _                  ->  stdlib_cma :: entities @ [std_exit_cmo])
+     :> [ entity | `Lib_from_cma of Lib.Name.t * filepath ] list)
   in
-  let obj_infos = read_obj_infos [] objfiles in
+  let lib_seen, obj_infos = read_obj_infos r assume_libs entities in
+  let lib_names = if !Clflags.link_everything then Some lib_seen else None in
   let tolink = List.fold_right scan_file obj_infos [] in
   let missing_modules =
     Ident.Map.filter (fun id _ -> not (Ident.is_predef id)) !missing_globals
@@ -751,6 +797,12 @@ let link objfiles output_name =
 open Format
 
 let report_error ppf = function
+  | Lib_resolution_error (erroring_cma, err) ->
+      begin match erroring_cma with
+      | None -> fprintf ppf "@[%s@]" err
+      | Some file ->
+          fprintf ppf "@[%s@]" (Lib.Resolver.err_in_archive ~file err)
+      end
   | File_not_found name ->
       fprintf ppf "Cannot find file %a" Location.print_filename name
   | Not_an_object_file name ->

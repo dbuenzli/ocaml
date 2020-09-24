@@ -1790,6 +1790,7 @@ bytecomp/bytelink.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     bytecomp/instruct.cmi \
     typing/ident.cmi \
     bytecomp/emitcode.cmi \
@@ -1808,6 +1809,7 @@ bytecomp/bytelink.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     bytecomp/instruct.cmx \
     typing/ident.cmx \
     bytecomp/emitcode.cmx \
@@ -1822,6 +1824,7 @@ bytecomp/bytelink.cmx : \
 bytecomp/bytelink.cmi : \
     bytecomp/symtable.cmi \
     utils/misc.cmi \
+    utils/lib.cmi \
     file_formats/cmo_format.cmi
 bytecomp/bytepackager.cmo : \
     typing/typemod.cmi \

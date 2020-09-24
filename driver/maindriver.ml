@@ -84,7 +84,7 @@ let main argv ppf =
       Warnings.check_fatal ();
     end
     else if not !Compenv.stop_early && !objfiles <> [] then begin
-      let target =
+      let out_file =
         if !output_c_object && not !output_complete_executable then
           let s = Compenv.extract_output !output_name in
           if (Filename.check_suffix s Config.ext_obj
@@ -101,7 +101,17 @@ let main argv ppf =
           Compenv.default_output !output_name
       in
       Compmisc.init_path () ~libs:[];
-      Bytelink.link (Compenv.get_objfiles ~with_ocamlparam:true) target;
+      let lib_resolver = Compmisc.get_lib_resolver () in
+      let assume_libs = Compenv.get_assume_libs () in
+      let requires = (Compenv.get_requires () :> Bytelink.entity list) in
+      let objs = Compenv.get_objfiles ~with_ocamlparam:true in
+      let objs = List.map (fun o -> `File o) objs in
+      let entities =
+        (* XXX this is not according to RFC we need to respect objs/requires
+           interleaving. Doing that cleanly remains a question at the moment. *)
+        requires @ objs
+      in
+      Bytelink.link lib_resolver ~assume_libs entities out_file;
       Warnings.check_fatal ();
     end;
   with

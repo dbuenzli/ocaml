@@ -45,9 +45,13 @@ val get_requires :
 
 val get_lib_requires_fatal_on_file : err_context:string -> Lib.Name.t list
 (** [get_lib_requires_fatal_on_file ()] is the list of libraries mentioned
-    in {!Clflags.rev_requires}. If the latter has [`File] elements
+    in {!Clflags.requires_rev}. If the latter has [`File] elements
     calls {!Compenv.fatal} with an appropriate error message that
     mentions [err_context]. *)
+
+val get_assume_libs : unit -> Lib.Name.Set.t
+(** [get_assume_libs ()] is the set of libraries mentioned in
+    in {!Clflags.assume_libs_rev}. *)
 
 val stop_early : bool ref
 
