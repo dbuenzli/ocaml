@@ -133,6 +133,7 @@ extern uintnat (*caml_stack_usage_hook)(void);
 /* Declaration of variables used in the asm code */
 extern value * caml_globals[];
 extern char caml_globals_map[];
+extern char caml_imported_libs[];
 extern intnat caml_globals_inited;
 extern intnat * caml_frametable[];
 

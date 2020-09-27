@@ -2616,6 +2616,7 @@ let global_data name v =
           (Marshal.to_string v []) [])
 
 let globals_map v = global_data "caml_globals_map" v
+let imported_libs libs = global_data "caml_imported_libs" libs
 
 (* Generate the master table of frame descriptors *)
 

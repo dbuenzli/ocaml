@@ -281,7 +281,7 @@ let make_globals_map units_list ~crc_interfaces =
       (name, intf, None, []) :: acc)
     crc_interfaces defined
 
-let make_startup_file ~ppf_dump units_list ~crc_interfaces =
+let make_startup_file ~ppf_dump units_list ~crc_interfaces ~lib_names =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup";
@@ -298,6 +298,7 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units_list ~crc_interfaces in
   compile_phrase (Cmm_helpers.globals_map globals_map);
+  compile_phrase (Cmm_helpers.imported_libs lib_names);
   compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
   if !Clflags.function_sections then
     compile_phrase
@@ -404,7 +405,10 @@ let link ~ppf_dump r ~assume_libs (entities : entity list) output_name =
        else stdlib :: entities @ [stdexit])
        :> [ entity | `Lib_from_cmxa of Lib.Name.t * filepath ] list)
     in
-    let _lib_seen, obj_infos = read_obj_infos r assume_libs entities in
+    let lib_seen, obj_infos = read_obj_infos r assume_libs entities in
+    let lib_names =
+      if !Clflags.link_everything then lib_seen else Lib.Name.Set.empty
+    in
     let units_tolink = List.fold_right scan_file obj_infos [] in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
@@ -425,7 +429,8 @@ let link ~ppf_dump r ~assume_libs (entities : entity list) output_name =
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
     Asmgen.compile_unit
       startup !Clflags.keep_startup_file startup_obj
-      (fun () -> make_startup_file ~ppf_dump units_tolink ~crc_interfaces);
+      (fun () ->
+         make_startup_file ~ppf_dump units_tolink ~crc_interfaces ~lib_names);
     Misc.try_finally
       (fun () ->
          call_linker (List.filter_map object_file_name_of_file obj_infos)
