@@ -111,7 +111,7 @@ let main argv ppf =
       Warnings.check_fatal ();
     end
     else if not !Compenv.stop_early && !objfiles <> [] then begin
-      let target =
+      let out_file =
         if !output_c_object then
           let s = Compenv.extract_output !output_name in
           if (Filename.check_suffix s Config.ext_obj
@@ -127,9 +127,19 @@ let main argv ppf =
           Compenv.default_output !output_name
       in
       Compmisc.init_path () ~libs:[];
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
+      Compmisc.with_ppf_dump ~file_prefix:out_file (fun ppf_dump ->
+          let lib_resolver = Compmisc.get_lib_resolver () in
+          let assume_libs = Compenv.get_assume_libs () in
+          let requires = (Compenv.get_requires () :> Asmlink.entity list) in
           let objs = Compenv.get_objfiles ~with_ocamlparam:true in
-          Asmlink.link ~ppf_dump objs target);
+          let objs = List.map (fun o -> `File o) objs in
+          let entities =
+            (* XXX this is not according to RFC we need to respect objs/requires
+               interleaving. Doing that cleanly remains a question at the
+               moment. *)
+            requires @ objs
+          in
+          Asmlink.link ~ppf_dump lib_resolver ~assume_libs entities out_file);
       Warnings.check_fatal ();
     end;
   with

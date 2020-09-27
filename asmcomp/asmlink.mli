@@ -18,7 +18,23 @@
 open Misc
 open Format
 
-val link: ppf_dump:formatter -> string list -> string -> unit
+type entity =
+  [ `Lib of Lib.Name.t (** Library (by name) *)
+  | `File_and_deps of filepath (** File and its library dependencies. *)
+  | `File of filepath (** File without library dependencies. *) ]
+(** The type for entities to link. *)
+
+val link :
+  ppf_dump:formatter -> Lib.Resolver.t -> assume_libs:Lib.Name.Set.t ->
+  entity list -> filepath -> unit
+(** [link ~ppf_dump r ~assume_libs es out_file] links entities [es]
+    and outputs the result to [out_file]. [r] is used to resolve
+    library names to cmxa files, except for those names that are in
+    [assume_libs] which are not resolved. [es] is given in link order,
+    however resolved libraries are (re)sorted in stable topological
+    order according to their dependencies. [ppf_dump] is the formatter
+    on which the CMM representation is dumped, if requested by
+    {!Cflags.dump_cmm}. *)
 
 val link_shared:
   ppf_dump:formatter -> requires:Lib.Name.t list -> string list -> string ->
@@ -32,6 +48,8 @@ val extract_crc_interfaces: unit -> crcs
 val extract_crc_implementations: unit -> crcs
 
 type error =
+  | Lib_resolution_error of
+      filepath option * string (** erroring file (if any) and error *)
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (modname * string list) list

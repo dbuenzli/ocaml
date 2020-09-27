@@ -23,6 +23,7 @@ open Compilenv
 module String = Misc.Stdlib.String
 
 type error =
+  | Lib_resolution_error of filepath option * string
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (modname * string list) list
@@ -34,6 +35,9 @@ type error =
   | Missing_cmx of filepath * modname
 
 exception Error of error
+
+type entity =
+  [ `Lib of Lib.Name.t | `File_and_deps of filepath | `File of filepath ]
 
 (* Consistency check between interfaces and implementations *)
 
@@ -187,6 +191,51 @@ let read_file obj_name =
     Library (file_name,infos)
   end
   else raise(Error(Not_an_object_file file_name))
+
+let find_lib_cmxa r (`Lib n | `Lib_from_cmxa (n, _) as l) =
+  let err e =
+    let src = match l with `Lib _ -> None | `Lib_from_cmxa (_, f) -> Some f in
+    raise (Error (Lib_resolution_error (src, e)))
+  in
+  match Lib.Resolver.get r n with
+  | Error e -> err e
+  | Ok lib -> match Lib.cmxa lib with Error e -> err e | Ok cmxa -> cmxa
+
+let rec read_cmxa_deps file infos r lib_seen rev_infos =
+  let libs = List.map (fun n -> `Lib_from_cmxa (n, file)) infos.lib_requires in
+  read_obj_infos_rev r lib_seen rev_infos libs
+
+and read_obj_infos_rev r lib_seen rev_infos = function
+  | [] -> lib_seen, rev_infos
+  | ((`Lib n | `Lib_from_cmxa (n, _)) as lib) :: entities ->
+      begin match Lib.Name.Set.mem n lib_seen with
+      | true -> read_obj_infos_rev r lib_seen rev_infos entities
+      | false ->
+          let lib_seen = Lib.Name.Set.add n lib_seen in
+          let cmxa = `File_and_deps (find_lib_cmxa r lib) in
+          read_obj_infos_rev r lib_seen rev_infos (cmxa :: entities)
+      end
+  | ((`File file_name | `File_and_deps file_name) as file) :: entities ->
+      match read_file file_name with
+      | Unit _ as cmx ->
+          read_obj_infos_rev r lib_seen (cmx :: rev_infos) entities
+      | Library (fname, infos) as cmxa ->
+          let lib_seen, rev_infos = match file with
+            | `File _ -> lib_seen, rev_infos
+            | `File_and_deps _ ->
+                (* Before adding the info for the cma to [rev_infos] we add the
+                   info for the cmas of the libraries it requires; for those not
+                   already seen and recursively. Implicitely this makes a stable
+                   topological sort of the cmas and their required libraries by
+                   depth first exploration of the library dependency DAG.
+                   Not TR but bound by depth of the dependency DAG. *)
+                read_cmxa_deps fname infos r lib_seen rev_infos
+          in
+          read_obj_infos_rev r lib_seen (cmxa :: rev_infos) entities
+
+let read_obj_infos r lib_seen entities =
+  let lib_seen, rev_infos = read_obj_infos_rev r lib_seen [] entities in
+  lib_seen, List.rev rev_infos
 
 let scan_file file tolink = match file with
   | Unit (file_name,info,crc) ->
@@ -345,15 +394,17 @@ let call_linker file_list startup_file output_name =
 
 (* Main entry point *)
 
-let link ~ppf_dump objfiles output_name =
+let link ~ppf_dump r ~assume_libs (entities : entity list) output_name =
   Profile.record_call output_name (fun () ->
-    let stdlib = "stdlib.cmxa" in
-    let stdexit = "std_exit.cmx" in
-    let objfiles =
-      if !Clflags.nopervasives then objfiles
-      else if !Clflags.output_c_object then stdlib :: objfiles
-      else stdlib :: (objfiles @ [stdexit]) in
-    let obj_infos = List.map read_file objfiles in
+    let stdlib = `File "stdlib.cmxa" in
+    let stdexit = `File "std_exit.cmx" in
+    let entities =
+      ((if !Clflags.nopervasives then entities
+       else if !Clflags.output_c_object then stdlib :: entities
+       else stdlib :: entities @ [stdexit])
+       :> [ entity | `Lib_from_cmxa of Lib.Name.t * filepath ] list)
+    in
+    let _lib_seen, obj_infos = read_obj_infos r assume_libs entities in
     let units_tolink = List.fold_right scan_file obj_infos [] in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
@@ -387,6 +438,12 @@ let link ~ppf_dump objfiles output_name =
 open Format
 
 let report_error ppf = function
+  | Lib_resolution_error (erroring_cmxa, err) ->
+      begin match erroring_cmxa with
+      | None -> fprintf ppf "@[%s@]" err
+      | Some file ->
+          fprintf ppf "@[%s@]" (Lib.Resolver.err_in_archive ~file err)
+      end
   | File_not_found name ->
       fprintf ppf "Cannot find file %s" name
   | Not_an_object_file name ->
