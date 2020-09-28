@@ -60,6 +60,11 @@ module Make (P : Dynlink_platform_intf.S) = struct
       public_dynamically_loaded_units : String.Set.t;
       (* All units that have been dynamically linked, not including those that
          were privately loaded. *)
+      main_program_libraries : String.Set.t;
+      (* OCaml libraries statically linked in the main program. *)
+      public_dynamically_loaded_libraries : String.Set.t;
+      (* All libraries that were dynamically loaded directly or indirectly via
+         [require]. *)
     }
 
     let invariant t =
@@ -78,6 +83,8 @@ module Make (P : Dynlink_platform_intf.S) = struct
       allowed_units = String.Set.empty;
       main_program_units = String.Set.empty;
       public_dynamically_loaded_units = String.Set.empty;
+      main_program_libraries = String.Set.empty;
+      public_dynamically_loaded_libraries = String.Set.empty;
     }
   end
 
@@ -134,6 +141,10 @@ module Make (P : Dynlink_platform_intf.S) = struct
           ifaces, implems, defined_symbols)
     in
     let main_program_units = String.Map.keys implems in
+    let main_program_libraries =
+      let add acc lib = String.Set.add lib acc in
+      P.fold_initial_libs String.Set.empty add
+    in
     let state : State.t =
       { ifaces;
         implems;
@@ -141,6 +152,8 @@ module Make (P : Dynlink_platform_intf.S) = struct
         allowed_units = main_program_units;
         main_program_units;
         public_dynamically_loaded_units = String.Set.empty;
+        main_program_libraries;
+        public_dynamically_loaded_libraries = String.Set.empty;
       }
     in
     global_state := state
@@ -329,6 +342,30 @@ module Make (P : Dynlink_platform_intf.S) = struct
       (!global_state).main_program_units
       (!global_state).public_dynamically_loaded_units)
 
+  let main_program_libraries () =
+    init ();
+    String.Set.elements (!global_state).main_program_libraries
+
+  let public_dynamically_loaded_libraries () =
+    init ();
+    String.Set.elements (!global_state).public_dynamically_loaded_libraries
+
+  let all_libraries () =
+    init ();
+    let main = (!global_state).main_program_libraries in
+    let dyn = (!global_state).public_dynamically_loaded_libraries in
+    String.Set.elements (String.Set.union main dyn)
+
+  let has_library l =
+    init ();
+    String.Set.mem l ((!global_state).main_program_libraries) ||
+    String.Set.mem l ((!global_state).public_dynamically_loaded_libraries)
+
+  let set_library_loaded l =
+    let state = !global_state in
+    let pub = String.Set.add l state.public_dynamically_loaded_libraries in
+    global_state := { state with public_dynamically_loaded_libraries = pub }
+
   let dll_filename fname =
     if Filename.is_implicit fname then Filename.concat (Sys.getcwd ()) fname
     else fname
@@ -357,8 +394,15 @@ module Make (P : Dynlink_platform_intf.S) = struct
   let loadfile filename = load false filename
   let loadfile_private filename = load true filename
 
+  let default_ocamlpath = Config.default_ocamlpath
+  let ocamlpath_of_string s = Lib.Ocamlpath.to_dirs (Lib.Ocamlpath.of_string s)
+
   let unsafe_get_global_value = P.unsafe_get_global_value
 
   let is_native = P.is_native
   let adapt_filename = P.adapt_filename
+  let assume_library l =
+    init ();
+    if String.Set.mem l ((!global_state).main_program_libraries) then () else
+    set_library_loaded l
 end

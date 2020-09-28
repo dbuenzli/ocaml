@@ -25,11 +25,18 @@ module Make (_ : Dynlink_platform_intf.S) : sig
   val loadfile_private : string -> unit
   val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
   val adapt_filename : string -> string
+  val default_ocamlpath : string list
+  val ocamlpath_of_string : string -> string list
+  val assume_library : string -> unit
   val set_allowed_units : string list -> unit
   val allow_only: string list -> unit
   val prohibit : string list -> unit
   val main_program_units : unit -> string list
   val public_dynamically_loaded_units : unit -> string list
   val all_units : unit -> string list
+  val main_program_libraries : unit -> string list
+  val public_dynamically_loaded_libraries : unit -> string list
+  val all_libraries : unit -> string list
+  val has_library : string -> bool
   val allow_unsafe_modules : bool -> unit
 end

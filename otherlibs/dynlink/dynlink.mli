@@ -72,6 +72,27 @@ val adapt_filename : string -> string
 (** In bytecode, the identity function. In native code, replace the last
     extension with [.cmxs]. *)
 
+(** {1:libs Dynamic loading of libraries}
+
+    These function load libraries and archives with their recursively
+    required libraries according to the OCaml library convention. *)
+
+val default_ocamlpath : string list
+(** [default_ocamlpath] is the value of the ocamlpath that has been
+    set at OCaml configuration time. *)
+
+val ocamlpath_of_string : string -> string list
+(** [ocamlpath_of_string s] parses [s] into a list of directories by
+    following the OS convention for [PATH]-like variables. This means they
+    are colon ':' (semi-colon ';' if {!Sys.win32}) separated paths. Empty
+    paths are allowed and discarded. *)
+
+val assume_library : string -> unit
+(** [assume_library l] declares the library [l] to be loaded. This
+    just adds the library name [l] to
+    {!public_dynamically_loaded_libraries}, unless it was already in
+    {!main_program_libraries}. *)
+
 (** {1 Access control} *)
 
 val set_allowed_units : string list -> unit
@@ -111,6 +132,23 @@ val all_units : unit -> string list
 (** Return the list of compilation units that form the main program together
     with those that have been dynamically loaded via [loadfile] (and not via
     [loadfile_private]). *)
+
+val main_program_libraries : unit -> string list
+(** [main_program_libraries ()] is the list of library names statically linked
+    in the program. *)
+
+val public_dynamically_loaded_libraries : unit -> string list
+(** [public_dynamically_loaded_libraries ()] is the list of library
+    names that were dynamically loaded via {!require} calls or
+    declared as such via {!assume_library} (if they were not in
+    {!main_program_libraries}).  *)
+
+val all_libraries : unit -> string list
+(** [all_libraries ()] is the union of {!main_program_libraries} and
+    {!public_dynamically_loaded_libraries}. *)
+
+val has_library : string -> bool
+(** [has_library l] is [List.mem l (all_libraries ())]. *)
 
 val allow_unsafe_modules : bool -> unit
 (** Govern whether unsafe object files are allowed to be
