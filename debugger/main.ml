@@ -143,6 +143,16 @@ let toplevel_loop () =
 
 (* Parsing of command-line arguments *)
 
+let get_required_lib_dirs requires = (* raises Failure *)
+  let lib_resolver = Compmisc.get_lib_resolver () in
+  let libs = Compmisc.get_libs lib_resolver requires in
+  List.map Lib.dir libs
+
+let requires_rev = ref []
+let add_require s = match Lib.Name.of_string s with
+  | Ok lib -> requires_rev := (lib :: (!requires_rev))
+  | Error e -> raise (Arg.Bad e)
+
 exception Found_program_name
 
 let anonymous s =
@@ -178,6 +188,9 @@ let speclist = [
       "<dir>  Add <dir> to the list of include directories";
    "-machine-readable", Arg.Set machine_readable,
       "Print information in a format more suitable for machines";
+   "-require", Arg.String add_require,
+      "<lib>  Add library directory of <lib> to the list of \
+       include directories";
    "-s", Arg.String set_socket,
       "<filename>  Set the name of the communication socket";
    "-version", Arg.Unit print_version,
@@ -230,7 +243,8 @@ let main () =
     if !Parameters.version
     then printf "\tOCaml Debugger version %s@.@." Config.version;
     Loadprinter.init();
-    Load_path.init !default_load_path;
+    let lib_incs = get_required_lib_dirs (List.rev !requires_rev) in
+    Load_path.init (List.rev_append lib_incs !default_load_path);
     Clflags.recursive_types := true;    (* Allow recursive types. *)
     toplevel_loop ();                   (* Toplevel. *)
     kill_program ();
