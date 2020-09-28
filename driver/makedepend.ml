@@ -405,10 +405,16 @@ let mli_file_dependencies source_file =
 
 let process_file_as process_fun def source_file =
   Compenv.readenv ppf (Before_compile source_file);
+  let err_context = "dependency discovery" in
+  let lib_resolver = Compmisc.get_lib_resolver () in
+  let libs = Compenv.get_lib_requires_fatal_on_file ~err_context in
+  let libs = Compmisc.get_libs lib_resolver libs in
+  let rev_lib_incs = List.rev_map Lib.dir libs in
   load_path := [];
   let cwd = if !nocwd then [] else [Filename.current_dir_name] in
   List.iter add_to_load_path (
       (!Compenv.last_include_dirs @
+       rev_lib_incs @
        !Clflags.include_dirs @
        !Compenv.first_include_dirs @
        cwd
@@ -636,6 +642,11 @@ let run_main argv =
          "<cmd>  Pipe sources through preprocessor <cmd>";
      "-ppx", Arg.String (add_to_list Compenv.first_ppx),
          "<cmd>  Pipe abstract syntax trees through preprocessor <cmd>";
+     "-require", Arg.String (fun s -> match Lib.Name.of_string s with
+         | Ok lib ->
+             Clflags.requires_rev := (`Lib lib :: (!Clflags.requires_rev))
+         | Error e -> raise (Arg.Bad e)),
+         "<lib> Add <lib> to the list of required libraries";
      "-shared", Arg.Set shared,
          " Generate dependencies for native plugin files (.cmxs targets)";
      "-slash", Arg.Set Clflags.force_slash,

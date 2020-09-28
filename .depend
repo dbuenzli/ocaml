@@ -5964,9 +5964,11 @@ driver/makedepend.cmo : \
     parsing/parse.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     parsing/lexer.cmi \
     parsing/depend.cmi \
     utils/config.cmi \
+    driver/compmisc.cmi \
     driver/compenv.cmi \
     utils/clflags.cmi \
     driver/makedepend.cmi
@@ -5977,9 +5979,11 @@ driver/makedepend.cmx : \
     parsing/parse.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
+    utils/lib.cmx \
     parsing/lexer.cmx \
     parsing/depend.cmx \
     utils/config.cmx \
+    driver/compmisc.cmx \
     driver/compenv.cmx \
     utils/clflags.cmx \
     driver/makedepend.cmi
