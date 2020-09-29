@@ -30,16 +30,18 @@ type global_map = {
 }
 
 module Native = struct
-  type handle
+  type ndl_handle
 
-  external ndl_open : string -> bool -> handle * Cmxs_format.dynheader
+  external ndl_open : string -> bool -> ndl_handle * Cmxs_format.dynheader
     = "caml_natdynlink_open"
-  external ndl_run : handle -> string -> unit = "caml_natdynlink_run"
+  external ndl_run : ndl_handle -> string -> unit = "caml_natdynlink_run"
   external ndl_getmap : unit -> global_map list = "caml_natdynlink_getmap"
   external ndl_imported_libs : unit -> Lib.Name.Set.t =
     "caml_natdynlink_imported_libs"
   external ndl_globals_inited : unit -> int = "caml_natdynlink_globals_inited"
   external ndl_loadsym : string -> Obj.t = "caml_natdynlink_loadsym"
+
+  type handle = ndl_handle Lazy.t
 
   module Unit_header = struct
     type t = Cmxs_format.dynunit
@@ -80,9 +82,10 @@ module Native = struct
     Lib.Name.Set.fold add_lib (ndl_imported_libs ()) acc
 
   let run_shared_startup handle =
-    ndl_run handle "_shared_startup"
+    ndl_run (Lazy.force handle) "_shared_startup"
 
   let run handle ~unit_header ~priv:_ =
+    let handle = Lazy.force handle in
     List.iter (fun cu ->
         try ndl_run handle cu
         with exn ->
@@ -91,11 +94,27 @@ module Native = struct
             (Printexc.get_raw_backtrace ()))
       (Unit_header.defined_symbols unit_header)
 
+  let read_plugin_header filename =
+    let err () = raise (Dynlink_types.Error (Not_a_bytecode_file filename)) in
+    match Binutils.read filename with
+    | Error _ -> err ()
+    | Ok t ->
+        match Binutils.symbol_offset t "caml_plugin_header" with
+        | None -> err ()
+        | Some offset ->
+            let ic = open_in_bin filename in
+            let finally () = close_in_noerr ic in
+            Fun.protect ~finally begin fun () ->
+              LargeFile.seek_in ic offset;
+              (input_value ic : Cmxs_format.dynheader)
+            end
+
   let load ~filename ~priv =
-    let handle, header =
-      try ndl_open filename (not priv)
-      with exn -> raise (Dynlink_types.Error (Cannot_open_dynamic_library exn))
+    let handle = lazy (* Delay that, we may have to load deps before *)
+      (try fst (ndl_open filename (not priv))
+       with e -> raise (Dynlink_types.Error (Cannot_open_dynamic_library e)))
     in
+    let header = read_plugin_header filename in
     if header.dynu_magic <> Config.cmxs_magic_number then begin
       raise (Dynlink_types.Error (Not_a_bytecode_file filename))
     end;
