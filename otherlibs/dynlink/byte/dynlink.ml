@@ -53,7 +53,7 @@ module Bytecode = struct
     let unsafe_module (t : t) = t.cu_primitives <> []
   end
 
-  type handle = Stdlib.in_channel * filename * Digest.t
+  type handle = Stdlib.in_channel * filename * Digest.t * string list (* dlls *)
 
   let default_crcs = ref []
   let default_libs = ref Lib.Name.Set.empty
@@ -99,8 +99,13 @@ module Bytecode = struct
 
   let run_shared_startup _ = ()
 
-  let run (ic, file_name, file_digest) ~unit_header ~priv =
+  let run (ic, file_name, file_digest, dlls) ~unit_header ~priv =
     let open Misc in
+    begin try
+      Dll.open_dlls Dll.For_execution (List.map Dll.extract_dll_name dlls)
+    with exn ->
+      raise (Dynlink_types.Error (Cannot_open_dynamic_library exn))
+    end;
     let old_state = Symtable.current_state () in
     let compunit : Cmo_format.compilation_unit = unit_header in
     seek_in ic compunit.cu_pos;
@@ -153,8 +158,8 @@ module Bytecode = struct
         with End_of_file ->
           raise (Dynlink_types.Error (Not_a_bytecode_file file_name))
       in
-      let handle = ic, file_name, file_digest in
       if buffer = Config.cmo_magic_number then begin
+        let handle = ic, file_name, file_digest, [] in
         let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
         seek_in ic compunit_pos;
         let cu = (input_value ic : Cmo_format.compilation_unit) in
@@ -164,12 +169,7 @@ module Bytecode = struct
         let toc_pos = input_binary_int ic in  (* Go to table of contents *)
         seek_in ic toc_pos;
         let lib = (input_value ic : Cmo_format.library) in
-        begin try
-          Dll.open_dlls Dll.For_execution
-            (List.map Dll.extract_dll_name lib.lib_dllibs)
-        with exn ->
-          raise (Dynlink_types.Error (Cannot_open_dynamic_library exn))
-        end;
+        let handle = ic, file_name, file_digest, lib.lib_dllibs in
         handle, lib.lib_units
       end else begin
         raise (Dynlink_types.Error (Not_a_bytecode_file file_name))
@@ -184,7 +184,7 @@ module Bytecode = struct
     | exception _ -> None
     | obj -> Some obj
 
-  let finish (ic, _filename, _digest) =
+  let finish (ic, _filename, _digest, _dlls) =
     close_in ic
 end
 
