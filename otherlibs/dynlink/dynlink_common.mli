@@ -27,6 +27,7 @@ module Make (_ : Dynlink_platform_intf.S) : sig
   val adapt_filename : string -> string
   val default_ocamlpath : string list
   val ocamlpath_of_string : string -> string list
+  val require : ocamlpath:string list -> string -> unit
   val assume_library : string -> unit
   val set_allowed_units : string list -> unit
   val allow_only: string list -> unit

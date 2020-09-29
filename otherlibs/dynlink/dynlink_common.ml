@@ -370,13 +370,23 @@ module Make (P : Dynlink_platform_intf.S) = struct
     if Filename.is_implicit fname then Filename.concat (Sys.getcwd ()) fname
     else fname
 
-  let load priv filename =
+  let rec load ~lib_resolver priv filename =
     init ();
     let filename = dll_filename filename in
     match P.load ~filename ~priv with
     | exception exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
-    | handle, units, _lib_requires ->
+    | handle, units, lib_requires ->
       try
+        begin match lib_resolver with
+        | None -> ()
+        | Some r ->
+            (* Before running the object we load the library it requires;
+               for those that are not yet and recursively. This loads them
+               in dependency order. Not railrec but stack size and open
+               handles are bound by depth of the dependency DAG. *)
+            let from_file = Some filename in
+            List.iter (load_library r ~from_file) lib_requires
+        end;
         global_state := check filename units !global_state ~priv;
         P.run_shared_startup handle;
         List.iter
@@ -391,8 +401,34 @@ module Make (P : Dynlink_platform_intf.S) = struct
         P.finish handle;
         raise exn
 
-  let loadfile filename = load false filename
-  let loadfile_private filename = load true filename
+  and load_library lib_resolver ~from_file lib_name =
+    init ();
+    if has_library lib_name then () else
+    let handle_error = function
+      | Ok () -> ()
+      | Error e ->
+          let e = match from_file with
+            | None -> e | Some file -> Lib.Resolver.err_in_archive ~file e
+          in
+          raise (DT.Error (Library_resolution_error e))
+    in
+    let get_archive = if P.is_native then Lib.cmxs else Lib.cma in
+    handle_error @@
+    Result.bind (Lib.Name.of_string lib_name) @@ fun n ->
+    Result.bind (Lib.Resolver.get lib_resolver n) @@ fun lib ->
+    Result.bind (get_archive lib) @@ fun archive ->
+    load ~lib_resolver:(Some lib_resolver) false archive;
+    set_library_loaded lib_name;
+    Ok ()
+
+  let loadfile filename = load ~lib_resolver:None false filename
+  let loadfile_private filename = load ~lib_resolver:None true filename
+
+  let require ~ocamlpath:ds arg =
+    let r = Lib.Resolver.create ~ocamlpath:(Lib.Ocamlpath.of_dirs ds) in
+    match String.contains arg Filename.dir_sep.[0] with
+    | true -> load ~lib_resolver:(Some r) false arg
+    | false -> load_library r ~from_file:None arg
 
   let default_ocamlpath = Config.default_ocamlpath
   let ocamlpath_of_string s = Lib.Ocamlpath.to_dirs (Lib.Ocamlpath.of_string s)

@@ -87,6 +87,18 @@ val ocamlpath_of_string : string -> string list
     are colon ':' (semi-colon ';' if {!Sys.win32}) separated paths. Empty
     paths are allowed and discarded. *)
 
+val require : ocamlpath:string list -> string -> unit
+(** [require ~ocamlpath arg] depends on [arg]:
+    {ul
+    {- If [arg] has a directory separator it is assumed to be
+       a library archive. Its recursive library dependencies are resolved
+       in the directories of [ocamlpath] and loaded in the right order via
+       {!loadfile} before [arg] itself.}
+    {- If [arg] is a library name it is resolved with its recursive
+       dependencies in [ocamlpath] and all are loaded in the right order
+       via {!loadfile}}}
+    Any library that is in {!all_libraries} does not get reloaded. *)
+
 val assume_library : string -> unit
 (** [assume_library l] declares the library [l] to be loaded. This
     just adds the library name [l] to
