@@ -171,7 +171,7 @@ let all_libraries () =
 let has_library n =
   Stdlib.String.Set.mem n (Lib.Name.Set.to_string_set !_all_libraries)
 
-let rec load_file recursive ppf name =
+let rec load_file ~lib_resolver recursive ppf name =
   let filename =
     try Some (Load_path.find name) with Not_found -> None
   in
@@ -181,17 +181,20 @@ let rec load_file recursive ppf name =
       let ic = open_in_bin filename in
       Misc.try_finally
         ~always:(fun () -> close_in ic)
-        (fun () -> really_load_file recursive ppf name filename ic)
+        (fun () ->
+           really_load_file ~lib_resolver recursive ppf name filename ic)
 
-and really_load_file recursive ppf name filename ic =
+and really_load_file ~lib_resolver recursive ppf name filename ic =
   let b = really_input_string ic (String.length Config.cmo_magic_number) in
   try
-    if b = Config.cmo_magic_number then load_cmo ppf recursive filename ic else
-    if b = Config.cma_magic_number then load_cma ppf filename ic else
+    if b = Config.cmo_magic_number
+    then load_cmo ppf ~lib_resolver recursive filename ic else
+    if b = Config.cma_magic_number
+    then load_cma ppf ~lib_resolver filename ic else
     (fprintf ppf "File %s is not a bytecode object file.@." name; false)
   with Load_failed -> false
 
-and load_cmo ppf recursive filename ic =
+and load_cmo ppf ~lib_resolver recursive filename ic =
   let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
   seek_in ic compunit_pos;
   let cu : compilation_unit = input_value ic in
@@ -204,7 +207,8 @@ and load_cmo ppf recursive filename ic =
             begin match Load_path.find_uncap file with
             | exception Not_found -> ()
             | file ->
-                if not (load_file recursive ppf file) then raise Load_failed
+                if not (load_file ~lib_resolver recursive ppf file)
+                then raise Load_failed
             end
         | _ -> ()
       )
@@ -212,10 +216,23 @@ and load_cmo ppf recursive filename ic =
   load_compunit ic filename ppf cu;
   true
 
-and load_cma ppf filename ic =
+and load_cma ppf ~lib_resolver filename ic =
   let toc_pos = input_binary_int ic in  (* Go to table of contents *)
   seek_in ic toc_pos;
   let lib = (input_value ic : library) in
+  begin match lib_resolver with
+  | None -> ()
+  | Some r ->
+      (* Before loading the lib we load the libraries it requires; for those
+         not already loaded and recursively. This loads them in topogical order
+         by depth first exploration of the library dependency DAG. Not tailrec
+         but stack size and used fds are bound by depth of the library
+         dependency DAG. *)
+      let load_lib l =
+        ignore (load_library ppf r ~from_file:(Some filename) l)
+      in
+      List.iter load_lib lib.lib_requires
+  end;
   List.iter
     (fun dllib ->
       let name = Dll.extract_dll_name dllib in
@@ -229,7 +246,27 @@ and load_cma ppf filename ic =
   List.iter (load_compunit ic filename ppf) lib.lib_units;
   true
 
-let dir_load ppf name = ignore (load_file false ppf name)
+and load_library ppf lib_resolver ~from_file lib_name =
+  if Lib.Name.Set.mem lib_name !_all_libraries then None else
+  let handle_error = function
+    | Ok lib -> Some lib
+    | Error e ->
+        let e = match from_file with
+          | None -> e | Some file -> Lib.Resolver.err_in_archive ~file:file e
+        in
+        fprintf ppf "@[%s@]@." e; raise Load_failed
+  in
+  handle_error @@
+  Result.bind (Lib.Resolver.get lib_resolver lib_name) @@ fun lib ->
+  Result.bind (Lib.cma lib) @@ fun cma ->
+  let lib_resolver = Some lib_resolver in
+  (* XXX TODO we should protect from infinite loops, but due to exceptions
+     we don't want to modify _all_libraries before as if would leave
+     _all_libraries inconsistent when they arise. *)
+  if not (load_file ~lib_resolver false ppf cma) then raise Load_failed else
+  (_all_libraries := Lib.Name.Set.add lib_name !_all_libraries; Ok lib)
+
+let dir_load ppf name = ignore (load_file ~lib_resolver:None false ppf name)
 
 let _ = add_directive "load" (Directive_string (dir_load std_out))
     {
@@ -237,7 +274,7 @@ let _ = add_directive "load" (Directive_string (dir_load std_out))
       doc = "Load in memory a bytecode object, produced by ocamlc.";
     }
 
-let dir_load_rec ppf name = ignore (load_file true ppf name)
+let dir_load_rec ppf name = ignore (load_file ~lib_resolver:None true ppf name)
 
 let _ = add_directive "load_rec"
     (Directive_string (dir_load_rec std_out))
@@ -246,7 +283,7 @@ let _ = add_directive "load_rec"
       doc = "As #load, but loads dependencies recursively.";
     }
 
-let load_file = load_file false
+let load_file = load_file ~lib_resolver:None false
 
 (* Load commands from a file *)
 
