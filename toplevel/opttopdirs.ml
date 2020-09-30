@@ -119,6 +119,38 @@ let dir_load ppf name = ignore (load_file ppf name)
 
 let _ = Hashtbl.add directive_table "load" (Directive_string (dir_load std_out))
 
+(* Require libraries *)
+
+let require ppf name =
+  try
+    let r = Compmisc.get_lib_resolver () (* N.B. fixed at init time *) in
+    let ocamlpath = Lib.Ocamlpath.to_dirs @@ Lib.Resolver.ocamlpath r in
+    Dynlink.require ~ocamlpath name;
+    match Lib.Name.of_string name with
+    | Error _ -> true (* we had an archive don't do anything. *)
+    | Ok lib_name -> (* that was a library we need to add the includes. *)
+        match Lib.Resolver.get r lib_name with
+        | Error e -> (* This may still fail on -linkall libs *)
+            fprintf ppf "@[%s@]@." e; false
+        | Ok lib ->
+            let lib_dir = Lib.dir lib in
+            let include_dirs = Load_path.get_paths () in
+            if not (List.mem lib_dir include_dirs) then dir_directory lib_dir;
+            true
+  with
+  | Dynlink.Error err ->
+      fprintf ppf "Error while loading %s: %s.@."
+        name (Dynlink.error_message err);
+      false
+  | exn ->
+      print_exception_outcome ppf exn;
+      false
+
+let dir_require ppf n = ignore (require ppf n)
+
+let () =
+  Hashtbl.add directive_table "require" (Directive_string (dir_require std_out))
+
 (* Load commands from a file *)
 
 let dir_use ppf name = ignore(Opttoploop.use_file ppf name)

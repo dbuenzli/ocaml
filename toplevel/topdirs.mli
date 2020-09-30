@@ -22,6 +22,7 @@ val dir_directory : string -> unit
 val dir_remove_directory : string -> unit
 val dir_cd : string -> unit
 val dir_load : formatter -> string -> unit
+val dir_require : formatter -> string -> unit
 val dir_use : formatter -> string -> unit
 val dir_use_output : formatter -> string -> unit
 val dir_install_printer : formatter -> Longident.t -> unit
@@ -48,3 +49,8 @@ val all_libraries : unit -> string list
 
 val has_library : string -> bool
 (** [has_library l] is [List.mem l (all_libraries)]. *)
+
+val require : formatter -> string -> bool
+(** [require ppf arg] is like the [#require] directive. Works
+    on library name and archives, prints error [ppf] and returns
+    [true] on success. The library directory added to the includes. *)

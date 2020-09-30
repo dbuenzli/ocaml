@@ -266,6 +266,30 @@ and load_library ppf lib_resolver ~from_file lib_name =
   if not (load_file ~lib_resolver false ppf cma) then raise Load_failed else
   (_all_libraries := Lib.Name.Set.add lib_name !_all_libraries; Ok lib)
 
+let require ppf n =
+  try
+    let r = Compmisc.get_lib_resolver () (* N.B. fixed at init time *) in
+    match String.contains n Filename.dir_sep.[0] with
+    | true -> load_file ~lib_resolver:(Some r) false ppf n
+    | false ->
+        match Lib.Name.of_string n with
+        | Error e -> fprintf ppf "@[%s@]@." e; false
+        | Ok lib_name ->
+            let lib = match load_library ppf r ~from_file:None lib_name with
+              | Some lib -> lib
+              | None ->
+                  match Lib.Resolver.get r lib_name with
+                  | Ok lib -> lib
+                  | Error e -> (* This may still fail on -linkall libs. *)
+                      fprintf ppf "@[%s@]@." e; raise Load_failed
+            in
+            let lib_dir = Lib.dir lib in
+            let include_dirs = Load_path.get_paths () in
+            if not (List.mem lib_dir include_dirs) then dir_directory lib_dir;
+            true
+  with
+  | Load_failed -> false
+
 let dir_load ppf name = ignore (load_file ~lib_resolver:None false ppf name)
 
 let _ = add_directive "load" (Directive_string (dir_load std_out))
@@ -284,6 +308,14 @@ let _ = add_directive "load_rec"
     }
 
 let load_file = load_file ~lib_resolver:None false
+
+(* Require libraires *)
+
+let dir_require ppf n = ignore (require ppf n)
+let () = add_directive "require"
+    (Directive_string (dir_require std_out))
+    { section = section_run;
+      doc = "Load a library or archive and its dependencies." }
 
 (* Load commands from a file *)
 
