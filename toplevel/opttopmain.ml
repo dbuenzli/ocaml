@@ -121,5 +121,12 @@ let main () =
   end;
   Compmisc.read_clflags_from_env ();
   if not (prepare Format.err_formatter) then exit 2;
-  Compmisc.init_path () ~libs:[];
+  let libs =
+    let assumed = Compenv.get_assume_libs () in
+    let prune = Lib.Name.Set.union Opttoploop.main_program_libraries assumed in
+    let lib = function `Lib l -> Some l | `File_and_deps _ -> None in
+    let libs = List.filter_map lib (Compenv.get_requires ()) in
+    Compmisc.get_libs ~prune (Compmisc.get_lib_resolver ()) libs
+  in
+  Compmisc.init_path () ~libs;
   Opttoploop.loop Format.std_formatter

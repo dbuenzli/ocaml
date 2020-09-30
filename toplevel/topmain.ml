@@ -85,7 +85,6 @@ let file_argument name =
       else exit 2
     end
 
-
 let wrap_expand f s =
   let start = !current in
   let arr = f s in
@@ -122,5 +121,12 @@ let main () =
   Compenv.readenv ppf Before_link;
   Compmisc.read_clflags_from_env ();
   if not (prepare ppf) then exit 2;
-  Compmisc.init_path () ~libs:[];
+  let libs =
+    let assumed = Compenv.get_assume_libs () in
+    let prune = Lib.Name.Set.union Toploop.main_program_libraries assumed in
+    let lib = function `Lib l -> Some l | `File_and_deps _ -> None in
+    let libs = List.filter_map lib (Compenv.get_requires ()) in
+    Compmisc.get_libs ~prune (Compmisc.get_lib_resolver ()) libs
+  in
+  Compmisc.init_path () ~libs;
   Toploop.loop Format.std_formatter

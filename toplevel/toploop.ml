@@ -637,9 +637,16 @@ let override_sys_argv new_argv =
 (* Execute a script.  If [name] is "", read the script from stdin. *)
 
 let run_script ppf name args =
-  override_sys_argv args;
-  Compmisc.init_path ~dir:(Filename.dirname name) () ~libs:[];
+  let libs =
+    let assumed = Compenv.get_assume_libs () in
+    let prune = Lib.Name.Set.union main_program_libraries assumed in
+    let lib = function `Lib l -> Some l | `File_and_deps _ -> None in
+    let libs = List.filter_map lib (Compenv.get_requires ()) in
+    Compmisc.get_libs ~prune (Compmisc.get_lib_resolver ()) libs
+  in
+  Compmisc.init_path ~dir:(Filename.dirname name) () ~libs;
                    (* Note: would use [Filename.abspath] here, if we had it. *)
+  override_sys_argv args;
   begin
     try toplevel_env := Compmisc.initial_env()
     with Env.Error _ | Typetexp.Error _ as exn ->

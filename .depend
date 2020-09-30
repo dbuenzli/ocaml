@@ -6305,6 +6305,7 @@ toplevel/opttopmain.cmo : \
     parsing/location.cmi \
     utils/lib.cmi \
     driver/compmisc.cmi \
+    driver/compenv.cmi \
     utils/clflags.cmi \
     toplevel/opttopmain.cmi
 toplevel/opttopmain.cmx : \
@@ -6315,6 +6316,7 @@ toplevel/opttopmain.cmx : \
     parsing/location.cmx \
     utils/lib.cmx \
     driver/compmisc.cmx \
+    driver/compenv.cmx \
     utils/clflags.cmx \
     toplevel/opttopmain.cmi
 toplevel/opttopmain.cmi :
@@ -6412,6 +6414,7 @@ toplevel/toploop.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     parsing/lexer.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
@@ -6456,6 +6459,7 @@ toplevel/toploop.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     parsing/lexer.cmx \
     typing/includemod.cmx \
     typing/ident.cmx \
