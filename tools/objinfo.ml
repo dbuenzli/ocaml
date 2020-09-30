@@ -22,6 +22,8 @@ open Printf
 open Misc
 open Cmo_format
 
+let only_requires = ref false
+
 (* Command line options to prevent printing approximation,
    function code and CRC
  *)
@@ -274,10 +276,38 @@ let exit_magic_error ~expected_kind err =
     | Parse_error err -> explain_parse_error expected_kind err
     | Unexpected_error err -> explain_unexpected_error err)
 
+let dump_requires reqs =
+  List.iter print_endline (List.map Lib.Name.to_string reqs)
+
+let dump_requires _filename ic = function
+  (* FIXME code dupes *)
+  | Magic_number.Cma ->
+      (* FIXME code dupe *)
+      let toc_pos = input_binary_int ic in
+      seek_in ic toc_pos;
+      let toc = (input_value ic : library) in
+      close_in ic;
+      dump_requires toc.lib_requires
+  | Magic_number.Cmxa _ ->
+      let li = (input_value ic : library_infos) in
+      close_in ic;
+      dump_requires li.lib_requires
+  | Magic_number.Cmxs ->
+      (* we assume we are at the offset of the dynamic information,
+          as returned by [find_dyn_offset]. *)
+      let header = (input_value ic : dynheader) in
+      close_in ic;
+      dump_requires header.dynu_requires
+  | obj_kind ->
+      close_in ic;
+      exit_errf "The object file type %S has not required library information."
+        (Magic_number.human_name_of_kind obj_kind)
+
 (* assume that 'ic' is already positioned at the right place
    depending on the format (usually right after the magic number,
    but Exec and Cmxs differ) *)
 let dump_obj_by_kind filename ic obj_kind =
+  if !only_requires then dump_requires filename ic obj_kind else
   let open Magic_number in
   match obj_kind with
     | Cmo ->
@@ -387,6 +417,8 @@ let dump_obj filename =
   else exit_magic_error ~expected_kind:None (Parse_error head_error)
 
 let arg_list = [
+  "-requires", Arg.Set only_requires,
+  " Only print required libraries, one per line.";
   "-no-approx", Arg.Set no_approx,
     " Do not print module approximation information";
   "-no-code", Arg.Set no_code,
