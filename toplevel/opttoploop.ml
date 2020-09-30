@@ -24,6 +24,10 @@ open Typedtree
 open Outcometree
 open Ast_helper
 
+let main_program_libraries =
+  let name n = Result.get_ok (Lib.Name.of_string n) in
+  Lib.Name.Set.of_list (List.map name (Dynlink.main_program_libraries ()))
+
 type res = Ok of Obj.t | Err of string
 type evaluation_outcome = Result of Obj.t | Exception of exn
 

@@ -6212,6 +6212,7 @@ toplevel/opttoploop.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     parsing/lexer.cmi \
     lambda/lambda.cmi \
     typing/includemod.cmi \
@@ -6259,6 +6260,7 @@ toplevel/opttoploop.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     parsing/lexer.cmx \
     lambda/lambda.cmx \
     typing/includemod.cmx \
@@ -6289,6 +6291,7 @@ toplevel/opttoploop.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     typing/env.cmi
 toplevel/opttopmain.cmo : \
     toplevel/opttoploop.cmi \
@@ -6467,6 +6470,7 @@ toplevel/toploop.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/lib.cmi \
     typing/env.cmi
 toplevel/topmain.cmo : \
     toplevel/toploop.cmi \

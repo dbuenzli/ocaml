@@ -15,6 +15,10 @@
 
 open Format
 
+val main_program_libraries : Lib.Name.Set.t
+(** [main_program_libraries] are the libraries that are statically
+    linked in the executable. *)
+
 (* Accessors for the table of toplevel value bindings.  These functions
    must appear as first and second exported functions in this module.
    (See module Translmod.) *)

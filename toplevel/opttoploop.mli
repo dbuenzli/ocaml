@@ -15,6 +15,10 @@
 
 open Format
 
+val main_program_libraries : Lib.Name.Set.t
+(** [main_program_libraries] are the libraries that are statically
+    linked in the executable. *)
+
 (* Set the load paths, before running anything *)
 
 val set_paths : unit -> unit

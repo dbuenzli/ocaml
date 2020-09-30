@@ -509,15 +509,15 @@ let refill_lexbuf buffer len =
    beginning of loop() so that user code linked in with ocamlmktop
    can call directives from Topdirs. *)
 
-let _ =
+let main_program_libraries =
   if !Sys.interactive then (* PR#6108 *)
     invalid_arg "The ocamltoplevel.cma library from compiler-libs \
                  cannot be loaded inside the OCaml toplevel";
   Sys.interactive := true;
-  let crc_intfs, _lib_names = Symtable.init_toplevel() in
+  let crc_intfs, lib_names = Symtable.init_toplevel() in
   Compmisc.init_path () ~libs:[];
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
-  ()
+  lib_names
 
 let find_ocamlinit () =
   let ocamlinit = ".ocamlinit" in
