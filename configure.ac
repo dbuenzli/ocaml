@@ -81,6 +81,7 @@ AC_SUBST([CC])
 # TOOLPREF variable. It would be better if flexdll where updated to require
 # WINDRES instead.
 AC_SUBST([DIRECT_CPP])
+AC_SUBST([DEFAULT_OCAMLPATH])
 AC_SUBST([ac_tool_prefix])
 AC_SUBST([exeext])
 AC_SUBST([OBJEXT])
@@ -204,6 +205,7 @@ AS_CASE([$host],
 AC_ARG_VAR([AS], [which assembler to use])
 AC_ARG_VAR([ASPP], [which assembler (with preprocessor) to use])
 AC_ARG_VAR([PARTIALLD], [how to build partial (relocatable) object files])
+AC_ARG_VAR([DEFAULT_OCAMLPATH], [default value for the OCAMLPATH])
 
 # Command-line arguments to configure
 

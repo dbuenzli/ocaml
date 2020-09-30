@@ -28,12 +28,16 @@ let standard_library =
   with Not_found ->
     standard_library_default
 
+let ocamlpath_of_dirs ds = String.concat (if Sys.win32 then ";" else ":") ds
+let ocamlpath_to_dirs s =
+  let sep = if Sys.win32 then ';' else ':' in
+  let non_empty s = String.length s <> 0 in
+  List.find_all non_empty (String.split_on_char sep s)
+
+let default_ocamlpath = ocamlpath_to_dirs "%%DEFAULT_OCAMLPATH%%"
 let ocamlpath = match Sys.getenv "OCAMLPATH" with
-  | exception Not_found -> []
-  | v ->
-      let sep = if Sys.win32 then ';' else ':' in
-      let non_empty s = String.length s <> 0 in
-      List.find_all non_empty (String.split_on_char sep v)
+  | exception Not_found -> default_ocamlpath
+  | v -> ocamlpath_to_dirs v
 
 let ccomp_type = "%%CCOMPTYPE%%"
 let c_compiler = "%%CC%%"
@@ -170,7 +174,8 @@ let configuration_variables =
   p "version" version;
   p "standard_library_default" standard_library_default;
   p "standard_library" standard_library;
-  p "ocamlpath" (String.concat (if Sys.win32 then ";" else ":") ocamlpath);
+  p "default_ocamlpath" (ocamlpath_of_dirs default_ocamlpath);
+  p "ocamlpath" (ocamlpath_of_dirs ocamlpath);
   p "ccomp_type" ccomp_type;
   p "c_compiler" c_compiler;
   p "ocamlc_cflags" ocamlc_cflags;
