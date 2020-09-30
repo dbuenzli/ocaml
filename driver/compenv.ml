@@ -39,6 +39,11 @@ let print_standard_library () =
   print_string Config.standard_library; print_newline();
   raise (Exit_compiler 0)
 
+let print_ocamlpath () =
+  let ocamlpath = Lib.Ocamlpath.of_dirs Config.ocamlpath in
+  print_string (Lib.Ocamlpath.to_string ocamlpath);
+  raise (Exit_compiler 0)
+
 let fatal err =
   prerr_endline err;
   raise (Exit_compiler 2)

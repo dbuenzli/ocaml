@@ -681,6 +681,10 @@ let mk_where f =
   "-where", Arg.Unit f, " Print location of standard library and exit"
 ;;
 
+let mk_ocamlpath f =
+  "-ocamlpath", Arg.Unit f, " Print the OCAMLPATH and exit"
+;;
+
 let mk_nopervasives f =
   "-nopervasives", Arg.Unit f, " (undocumented)"
 ;;
@@ -982,6 +986,7 @@ module type Compiler_options = sig
   val _linkall : unit -> unit
   val _noautolink : unit -> unit
   val _o : string -> unit
+  val _ocamlpath : unit -> unit
   val _opaque :  unit -> unit
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
@@ -1199,6 +1204,7 @@ struct
     mk_nostdlib F._nostdlib;
     mk_nopervasives F._nopervasives;
     mk_o F._o;
+    mk_ocamlpath F._ocamlpath;
     mk_opaque F._opaque;
     mk_open F._open;
     mk_output_obj F._output_obj;
@@ -1396,6 +1402,7 @@ struct
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
     mk_no_unbox_specialised_args F._no_unbox_specialised_args;
     mk_o F._o;
+    mk_ocamlpath F._ocamlpath;
     mk_o2 F._o2;
     mk_o3 F._o3;
     mk_opaque F._opaque;
@@ -1889,6 +1896,7 @@ module Default = struct
     let _no_keep_locs = clear keep_locs
     let _noautolink = set no_auto_link
     let _o s = output_name := (Some s)
+    let _ocamlpath () = Compenv.print_ocamlpath ()
     let _opaque = set opaque
     let _pack = set make_package
     let _plugin _p = plugin := true

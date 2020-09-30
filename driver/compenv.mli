@@ -24,6 +24,7 @@ val default_output : string option -> string
 val print_version_and_library : string -> 'a
 val print_version_string : unit -> 'a
 val print_standard_library : unit -> 'a
+val print_ocamlpath : unit -> 'a
 val fatal : string -> 'a
 
 val first_ccopts : string list ref
