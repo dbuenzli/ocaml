@@ -21,6 +21,13 @@ open Longident
 open Types
 open Opttoploop
 
+let assume_library n = match Lib.Name.of_string n with
+  | Error _ as e -> e
+  | Ok _n -> Dynlink.assume_library n; Ok ()
+
+let all_libraries = Dynlink.all_libraries
+let has_library = Dynlink.has_library
+
 (* The standard output formatter *)
 let std_out = std_formatter
 

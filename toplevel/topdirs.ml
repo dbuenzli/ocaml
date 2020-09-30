@@ -160,6 +160,17 @@ let load_compunit ic filename ppf compunit =
     raise Load_failed
   end
 
+let _all_libraries = ref Toploop.main_program_libraries
+let assume_library n = match Lib.Name.of_string n with
+  | Error _ as e -> e
+  | Ok n -> _all_libraries := Lib.Name.Set.add n !_all_libraries; Ok ()
+
+let all_libraries () =
+  Stdlib.String.Set.elements (Lib.Name.Set.to_string_set !_all_libraries)
+
+let has_library n =
+  Stdlib.String.Set.mem n (Lib.Name.Set.to_string_set !_all_libraries)
+
 let rec load_file recursive ppf name =
   let filename =
     try Some (Load_path.find name) with Not_found -> None

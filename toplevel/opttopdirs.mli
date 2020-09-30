@@ -32,3 +32,16 @@ type 'a printer_type_old = 'a -> unit
 
 (* For topmain.ml. Maybe shouldn't be there *)
 val load_file : formatter -> string -> bool
+
+val assume_library : string -> (unit, string) result
+(** [assume_library l] declares the library [l] to be loaded.
+    This prevents [l] from being looked up. An error is returned
+    if [l] is not a valid library name. *)
+
+val all_libraries : unit -> string list
+(** [all_libraries ()] is the set of library names that
+    are statically linked in the executable and those that
+    were loaded via requires or assumed to be loaded. *)
+
+val has_library : string -> bool
+(** [has_library l] is [List.mem l (all_libraries)]. *)

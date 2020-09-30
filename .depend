@@ -6163,6 +6163,7 @@ toplevel/opttopdirs.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
@@ -6178,6 +6179,7 @@ toplevel/opttopdirs.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
@@ -6333,6 +6335,7 @@ toplevel/topdirs.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/lib.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     bytecomp/dll.cmi \
@@ -6361,6 +6364,7 @@ toplevel/topdirs.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/lib.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     bytecomp/dll.cmx \
