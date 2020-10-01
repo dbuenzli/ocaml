@@ -136,6 +136,7 @@ let add_ccobjs origin l =
         Misc.replace_substring ~before:"$CAMLORIGIN" ~after:origin
       in
       lib_ccopts := List.map replace_origin l.lib_ccopts @ !lib_ccopts;
+      lib_ccopts := Printf.sprintf "-L%s" origin :: !lib_ccopts;
     end;
     lib_dllibs := l.lib_dllibs @ !lib_dllibs
   end
