@@ -14073,11 +14073,16 @@ natdynlinkopts=""
 
 if test x"$enable_shared" != "xno"; then :
   case $host in #(
-  *-apple-darwin*) :
-    mksharedlib="$CC -shared \
-                   -flat_namespace -undefined suppress -Wl,-no_compact_unwind \
-                   \$(LDFLAGS)"
-      supports_shared_libraries=true ;; #(
+  x86_64-apple-darwin*) :
+    mksharedlib="$CC \
+      -shared -undefined dynamic_lookup -Wl,-no_compact_unwind -Wl,-w \
+      \$(LDFLAGS)"
+    supports_shared_libraries=true ;; #(
+  aarch64-apple-darwin*|arm64-apple-darwin*) :
+    mksharedlib="$CC \
+      -shared -undefined dynamic_lookup -Wl,-w \
+      \$(LDFLAGS)"
+    supports_shared_libraries=true ;; #(
   *-*-mingw32) :
     mksharedlib='$(FLEXLINK)'
       mkmaindll='$(FLEXLINK) -maindll'
@@ -20036,4 +20041,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
